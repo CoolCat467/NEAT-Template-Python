@@ -9,8 +9,7 @@ AUTHOR = 'CoolCat467'
 __version__ = '0.0.0'
 
 import math, random
-from Vector2 import *
-from threading import Thread, Event
+#from threading import Thread, Event
 
 class Node(object):
     def __init__(self, no):
