@@ -838,6 +838,7 @@ class Population(object):
         return True
     pass
 
-cat = Population(5)
-[cat.naturalSelection() for i in range(500)]
-print(cat)
+if __name__ == '__main__':
+    cat = Population(5)
+    [cat.naturalSelection() for i in range(500)]
+    print(cat)
