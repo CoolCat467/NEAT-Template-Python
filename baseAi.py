@@ -6,10 +6,11 @@
 
 NAME = 'TRUE AI'
 AUTHOR = 'CoolCat467'
-__version__ = '0.0.0'
+__version__ = '1.0.0'
 
 import math, random
-#from threading import Thread, Event
+from Vector2 import *
+from threading import Thread, Event
 
 class Node(object):
     def __init__(self, no):
@@ -57,6 +58,23 @@ class Node(object):
     
     def clone(self):
         return self.__copy__()
+    
+    def save(self):
+##        self.number - int
+##        self.inputSum - float
+##        self.outputValue - float
+##        self.outputConnections - list - connectionGenes
+##        self.layer - int
+        nodes = ['fromNode', 'toNode']
+        connNodes = [[getattr(self.outputConnections[i], node) for node in nodes] for i in range(len(self.outputConnections))]
+        return [self.number, self.layer, [node.number for node in sum(connNodes, [])]]
+
+    @classmethod
+    def load(cls, data):
+        self = cls(data[0])
+        _, self.layer, connNodes = data
+        self.outputConnections = []#Gets set with connectNodes in genome class
+        return self
     pass
 
 class connectionGene(object):
@@ -69,7 +87,7 @@ class connectionGene(object):
         #each connection is given a innovation number to compare genomes
     
     def __repr__(self):
-        return '<connectionGene>'
+        return '<connectionGene Object>'
         
     def mutateWeight(self):
         change = random.randint(1, 10)
@@ -90,13 +108,22 @@ class connectionGene(object):
         clone = connectionGene(fromNode, toNode, self.weight, self.innovationNo)
         clone.enabled = bool(self.enabled)
         return clone
+    
+    def save(self):
+##        self.fromNode - Node object
+##        self.toNode - Node object
+##        self.weight - float
+##        self.enabled - bool
+##        self.innovationNo - int
+        #return [self.fromNode.save(), self.toNode.save(), float(self.weight), bool(self.enabled), int(self.innovationNo)]
+        return [self.fromNode.number, self.toNode.number, float(self.weight), int(self.innovationNo), bool(self.enabled)]
     pass
 
 class connectionHistory(object):
     def __init__(self, fromNode, toNode, inno, innoNos):
-        self.fromNode = fromNode
-        self.toNode = toNode
-        self.innovationNumber = inno
+        self.fromNode = int(fromNode)
+        self.toNode = int(toNode)
+        self.innovationNumber = int(inno)
         self.innovationNumbers = list(innoNos)
         # the innovation Numbers from the connections of the
         # genome which first had this mutation
@@ -118,6 +145,17 @@ class connectionHistory(object):
             # so it does match
             return True
         return False
+    
+    def clone(self):
+        clone = connectionHistory(self.fromNode, self.toNode, self.innovationNumber, self.innovationNumbers)
+        return clone
+    
+    def save(self):
+##        self.fromNode - int
+##        self.toNode - int
+##        self.innovationNumber - int
+##        self.innovationNumbers - list - ints
+        return [self.fromNode, self.toNode, self.innovationNumber, self.innovationNumbers]
     pass
 
 class Genome(object):
@@ -436,6 +474,33 @@ class Genome(object):
     
     def drawGenome(startX, startY, w, h):
         raise NotImplemented
+    
+    def save(self):
+##        self.genes - list - connectionGene objects
+##        self.nodes - list - Node objects
+##        self.inputs - int
+##        self.outputs - int
+##        self.layers - int
+##        self.nextNode - int
+##        self.biasNode - int
+##        self.network - list - Node objects - not required, generateNetwork makes.
+        genes = [gene.save() for gene in self.genes]
+        nodes = [node.save() for node in self.nodes]
+        return [self.inputs, self.outputs, genes, nodes, self.layers, self.nextNode, self.biasNode]
+    
+    @classmethod
+    def load(cls, data):
+        self = cls(*data[:2], False)
+        self.inputs, self.outputs, genes, nodes, self.layers, self.nextNode, self.biasNode = data
+        self.nodes = [Node.load(i) for i in nodes]
+        tmpgenes = [[connectionGene(self.getNode(frm), self.getNode(to), w, i), e] for frm, to, w, i, e in genes]
+        self.genes = []
+        for gene, e in tmpgenes:
+            gene.enabled = bool(e)
+            self.genes.append(gene)
+        #self.connectNodes() already called in generateNetwork
+        self.generateNetwork()
+        return self
     pass
 
 class BasePlayer(object):
@@ -504,6 +569,29 @@ class BasePlayer(object):
         child.brain = self.brain.crossover(parent2.brain)
         child.brain.generateNetwork()
         return child
+    
+    def save(self):
+##        self.fitness - float - not required, calculateFitness
+##        self.vision - list - floats - not required, look
+##        self.decision - list - floats - not required, think
+##        self.unadjustedFitness - float - not required
+##        self.lifespan - float
+##        self.bestScore - float
+##        self.dead - bool
+##        self.score - float
+##        self.gen - int
+##        self.genomeInputs - int - not required, brain has
+##        self.genomeOutputs - int - not required, brain has
+##        self.brain - genome object
+        return [self.brain.save(), self.gen, self.dead, self.bestScore, self.score]
+    
+    @classmethod
+    def load(cls, data):
+        self = cls()
+        brain, self.gen, self.dead, self.bestScore, self.score = data
+        self.genomeInputs, self.genomeOutputs = brain[:2]
+        self.brain = Genome.load(brain)
+        return self
     pass
 
 class Species(object):
@@ -633,6 +721,33 @@ class Species(object):
     def cull(self):
         if len(self.players) > 2:
             self.players = self.players[int(len(self.players)/2):]
+    
+    def clone(self):
+        clone = Species()
+        clone.players = [player.clone() for player in self.players]
+        clone.bestFitness = float(self.bestFitness)
+        clone.champ = self.champ.clone()
+        clone.setAverage()
+        clone.staleness = int(self.staleness)
+        clone.excessCoeff = float(self.excessCoeff)
+        clone.weightDiffCoeff = float(self.weightDiffCoeff)
+        clone.compatibilityThreshold = float(self.compatibilityThreshold)
+        return clone
+    
+    def save(self):
+##        self.players - list - player objects
+##        self.bestFitness - float
+##        self.champ - player object
+##        self.averageFitness - float - not required, setAverage
+##        self.staleness - int
+##        self.rep - genome object
+##        self.excessCoeff - float
+##        self.weightDiffCoeff - float
+##        self.compatibilityThreshold - float
+        players = [player.save() for player in self.players]
+        champ = self.champ.save()
+        rep = self.rep.save()
+        return [players, self.bestFitness, champ, self.staleness, self.excessCoeff, self.weightDiffCoeff, self.compatibilityThreshold]
     pass
 
 class Population(object):
@@ -836,9 +951,190 @@ class Population(object):
             if not self.players[i].dead:
                 return False
         return True
+    
+    def clone(self):
+        clone = Population(len(self.players))
+        clone.players = [player.clone() for player in self.players]
+        clone.bestPlayer = self.bestPlayer.clone()
+        clone.bestScore = float(self.bestScore)
+        clone.globalBestScore = float(self.globalBestScore)
+        clone.gen = int(self.gen)
+        clone.innovationHistory = [ih.clone() for ih in self.innovationHistory]
+        clone.genPlayers = [player.clone() for player in self.genPlayers]
+        clone.species = [sep.clone() for sep in self.species]
+        return clone
+    
+    def save(self):
+        """Saves all data"""
+        #self.players - list - player objects
+        #self.bestPlayer - player object
+        #self.bestScore - float
+        #self.globalBestScore - float
+        #self.gen - int
+        #self.innovationHistory - list - connectionHistory objects
+        #self.genPlayers - list - player objects
+        #self.species - list - species objects
+        players = [player.save() for player in self.players]
+        bestp = self.bestPlayer.save()
+        innoh = [innohist.save() for innohist in self.innovationHistory]
+        genplayers = [gplayer.save() for gplayer in self.genPlayers]
+        species = [specie.save() for specie in self.species]
+        return [players, bestp, self.bestScore, self.globalBestScore, self.gen, innoh, genplayers, species]
+    
+    @classmethod
+    def load(cls, data):
+        self = cls(len(data[0]))
+        players, bestp, self.bestScore, self.globalBestScore, self.gen, innoh, genplayers, species = data
+        self.players = [BasePlayer.load(pdat) for pdat in players]
+        self.bestPlayer = BasePlayer.load(bestp)
+        self.innovationHistory = [connectionHistory(*i) for i in innoh]
+        return self
     pass
 
+##class fileHandler(object):
+##    def __init__(self, filename, mode='r'):
+##        self.filename = str(filename)
+##        self.mode = str(mode)
+##    
+##    def writeList(self, data):
+##        text = []
+##        lst = []
+##        nums = []
+##        for i in range(len(data)):
+##            if hasattr(data[i], '__reversed__'):
+##                lst.append(i)
+##            elif hasattr(data[i], 'capitalize'):
+##                text.append(i)
+##            elif hasattr(data[i], 'real'):
+##                nums.append(i)
+##        filedata = []
+##        incount = 0
+##        lastTarget = -1
+##        target = 0
+##        targets = [text, lst, nums]
+##        while target < len(targets):
+##            if lastTarget != target:
+##                lastTarget = target
+##                data.append('<%i>' % target)
+##            data.append(' '*incount+'{\n ')
+##            incount += 1
+##            for i in targets[target]:
+##                thing = data[i]
+##                incount += 4
+##                if target == 0:
+##                    filedata.append(' '*incount+'$'+thing+'$\n')
+##                elif target == 1:
+##                    filedata.append(' '*incount+'/'+'&'.join(thing)+'/\n')
+##                elif target == 2:
+##                    filedata.append(' '*incount+'N'+str(thing)+'N\n')
+##                incount -= 4
+##            data.append(' '*incount+'}\n ')
+##            target += 1
+##            incount -= 1
+##        self.fwrite(data)
+##    
+##    def fwrite(self, data):
+##        with open(self.filename, self.mode) as saveFile:
+##            saveFile.write(data)
+##            saveFile.close()
+##    
+##    def write(self, obj):
+##        if self.mode == 'w':
+##            if hasattr(obj, 'index'):
+##                self.writeList(list(obj))
+##                return
+##            raise TypeError('Cannot write objects without an index method!')
+##    pass
+
+def typ(x):
+    if hasattr(x, '__reversed__'):
+        return 0
+    elif hasattr(x, 'capitalize'):
+        return 1
+    elif hasattr(x, 'real'):
+        if str(x) in ('True', 'False'):
+            return 3
+        return 2
+    return None
+
+def save(data, filename):
+    """Save data to a file."""
+    infl = lambda x: int(x) if round(float(x)) == float(x) else float(x)
+    def sv(filedata, incount, lst):
+        filedata.append(' '*incount+'{\n')
+        incount += 2
+        for thing in lst:
+            t = typ(thing)
+            if t == 0:
+                if len(thing):
+                    filedata, incount = sv(filedata, incount, thing)
+                else:
+                    filedata.append(' '*incount+'{}\n')
+                #filedata.append(' '*incount+'/'+'&'.join(thing)+'/\n')
+            elif t == 1:
+                filedata.append(' '*incount+'$'+thing+'$\n')
+            elif t == 2:
+                filedata.append(' '*incount+'N'+str(infl(thing))+'N\n')
+            elif t == 3:
+                filedata.append(' '*incount+'@'+str(thing)+'@\n')
+        incount -= 2
+        filedata.append(' '*incount+'}\n')
+        return filedata, incount
+    filedata, _ = sv([], 0, data)
+    with open(filename, 'w') as saveFile:
+        saveFile.write(''.join(filedata))
+        saveFile.close()
+
+def load(filename):
+    """Return data retreved from a file."""
+    infl = lambda x: int(x) if round(float(x)) == float(x) else float(x)
+    def ld(data, lst, idx):
+        add = []
+        while True:
+            if idx >= len(lst):
+                break
+            line = lst[idx]
+            sp = line.count(' ')
+            text = line[sp:]
+            t = text[0]
+            if text == '{}':
+                add.append([])
+                idx += 1
+                continue
+            if t == '{':
+                idx += 1
+                fromNext, idx = ld(add, lst, idx)
+                #print(fromNext, add)
+                add.append(fromNext)
+            elif t == '}':
+                break
+            elif t == '$':
+                add.append(text[1:-1])
+            elif t == 'N':
+                add.append(infl(text[1:-1]))
+            elif t == '@':
+                add.append(True if text[1:-1] == 'True' else False)
+            idx += 1
+        return add, idx
+    with open(filename, 'r') as loadFile:
+        filedata = loadFile.read().splitlines()
+        loadFile.close()
+    data, _ = ld([], filedata, 0)
+    return data[0]
+
 if __name__ == '__main__':
-    cat = Population(5)
-    [cat.naturalSelection() for i in range(500)]
+    print('Starting example.')
+    try:
+        data = load('AI_Data.txt')
+    except FileNotFoundError:
+        cat = Population(5)
+    else:
+        print('AI Data loaded from AI_Data.txt')
+        cat = Population.load(data)
+    print('Running Natural Selection program 100 times...')
+    [cat.naturalSelection() for i in range(100)]
+    print('Natural Selection done.')
     print(cat)
+    print('Saving AI data to AI_Data.txt...')
+    save(cat.save(), 'AI_Data.txt')
+    print('Done.')
