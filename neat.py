@@ -1,63 +1,74 @@
 #!/usr/bin/env python3
-# NEAT Artificial Intelegence Template Module based of CodeBullet Javascript code.
 # -*- coding: utf-8 -*-
+# NEAT Artificial Intelegence Template Module based of CodeBullet Javascript code.
+
+""" NEAT Artificial Intelegence Template Module based of CodeBullet Javascript code. """
 
 # Heavily based of https://github.com/Code-Bullet/NEAT-Template-JavaScript
 
 __title__ = 'NEAT Artificial Intelegence Template Module'
-__author__ = 'CoolCat467'
-__version__ = '1.1.0'
-__ver_major__ = 1
-__ver_minor__ = 1
+__author__ = 'CoolCat467 & CodeBullet'
+__version__ = '2.0.0'
+__ver_major__ = 2
+__ver_minor__ = 0
 __ver_patch__ = 0
 
-import math, random
-from Vector2 import *
+import math
+import random
+from typing import Union
+from functools import lru_cache
+import json
 
-class Node(object):
+@lru_cache(2**7)
+def sigmoid(input_):
+    """Return the sigmoid of input.
+    AIs use this to prevent the need for keeping track of a threshold value
+    for activation."""
+##    return 1 / (1 + (math.e**(-4.9 * input_)))#Original
+    # No idea why the original does -4.9 * input_, that is odd.
+    return 1 / (1 + (math.pow(math.e, -input_)))#Modified
+##    return math.atan(input_)
+
+class Node:
     """Represents a nuron in a brain."""
-    def __init__(self, no):
-        self.number = no
-        self.inputSum = 0 #current sum i.e. before activation
-        self.outputValue = 0 #after activation function is applied
-        self.outputConnections = []
-        self.layer = 0
+    __slots__ = 'number', 'input_sum', 'output_value', 'output_connections', 'layer'
+    def __init__(self, no:int):
+        self.number:int = no
+        #current sum i.e. before activation
+        self.input_sum:float = 0
+        #after activation function is applied
+        self.output_value:float = 0
+        self.output_connections:list = []
+        self.layer:int = 0
     
-    def __repr__(self):
-        """Return what this object should be represented by in the python interpriter."""
-        return 'Node(%i)' % self.number
-        #return 'Node(%i, %f, %f, %s, %i)' % (self.number, self.inputSum, self.outputValue, self.outputConnections, self.layer)
+    def __repr__(self) -> str:
+        return f'Node({self.number})'
     
-    @staticmethod
-    def sigmoid(x):
-        """Return the sigmoid of x. AIs use this to prevent the need for keeping track of a threshold value for activation."""
-##        return 1 / (1 + (math.e**(-4.9 * x)))#Original
-        # No idea why the original does -4.9 * x, that is odd.
-        return 1 / (1 + (math.e ** (-x)))#Modified
-    
-    def engage(self):
-        """Calculate self.outputValue using the sigmoid function, then add output value to each connected node's inputSum."""
-        # the node sends its output to the inputs of the nodes its connected to
+    def engage(self) -> None:
+        """Calculate self.output_value using sigmoid function, add value to connected node input_sums."""
+        # The node sends its output to the inputs of the nodes its connected to
         if self.layer != 0:#no sigmoid for the inputs and bias
-            self.outputValue = self.sigmoid(self.inputSum)
+            self.output_value = sigmoid(self.input_sum)
         
-        for i in range(len(self.outputConnections)):# for each connection
-            if self.outputConnections[i].enabled:# dont do anything if not enabled
-                self.outputConnections[i].toNode.inputSum += self.outputConnections[i].weight * self.outputValue
-                #add the weighted output to the sum of the inputs of whatever node this node is connected to
+        for conn in self.output_connections:
+            if conn.enabled:
+                #Add the weighted output to the sum of the inputs of whatever node this node is connected to
+                conn.to_node.input_sum += conn.weight * self.output_value
+        return None
     
-    def isConnectedTo(self, node):
+    def is_connected_to(self, node):
         """Return True if this node is connected to <node>."""
         if node.layer == self.layer:
+            # can't connect if on same layer
             return False
         
         if node.layer < self.layer:
-            for i in range(len(node.outputConnections)):
-                if node.outputConnections[i].toNode == self:
+            for conn in node.output_connections:
+                if conn.to_node == self:
                     return True
         else:
-            for i in range(len(node.outputConnections)):
-                if node.outputConnections[i].toNode == node:
+            for conn in self.output_connections:
+                if conn.to_node == node:
                     return True
         return False
     
@@ -73,66 +84,70 @@ class Node(object):
     
     def save(self):
         """Return a list containing important data about this node."""
-        connNodes = [[self.outputConnections[i].fromNode, self.outputConnections[i].toNode] for i in range(len(self.outputConnections))]
-        return [self.number, self.layer, [node.number for node in sum(connNodes, [])]]
-
+        cnodes = []
+        for conn in self.output_connections:
+            cnodes.append(conn.from_node.number)
+            cnodes.append(conn.to_node.number)
+        return self.number, self.layer, tuple(cnodes)
+    
     @classmethod
     def load(cls, data):
         """Return a Node Object with data initialized from given data input."""
         node = cls(data[0])
-        _, node.layer, connNodes = data
-        node.outputConnections = []#Gets set with connectNodes in genome class
-        return self
-    pass
+        _, node.layer, _ = data
+        node.output_connections = []#Gets set with connect_nodes in genome class
+        return node
 
-class connectionGene(object):
+class Connection:
     """Object representing a connection between two node objects."""
-    def __init__(self, fromNode, toNode, weight, inno):
-        self.fromNode = fromNode
-        self.toNode = toNode
+    __slots__ = 'from_node', 'to_node', 'weight', 'enabled', 'innov_no'
+    def __init__(self, from_node:Node, to_node:Node, weight:float, inno:int):
+        self.from_node = from_node
+        self.to_node = to_node
         self.weight = weight
         self.enabled = True
-        self.innovationNo = inno
         #each connection is given a innovation number to compare genomes
+        self.innov_no = inno
     
     def __repr__(self):
         """Return what this object should be represented by in the python interpriter."""
-        return '<connectionGene Object>'
-        
-    def mutateWeight(self):
+        return '<Connection Object>'
+    
+    def mutate_weight(self) -> None:
         """Mutate the weight of this connection."""
         change = random.randint(1, 10)
         if change == 1:#10% of the time completely change the self.weight
-            self.weight = random.randint(-100, 100)/100
+            self.weight = random.random()*2-1
         else:#otherwise slightly change it
             self.weight += random.gauss(0, 1) / 50
             # Keep self.weight within bounds
             self.weight = min(self.weight, 1)
             self.weight = max(self.weight, -1)
+        return None
     
     def __copy__(self):
         """Returns a copy of self."""
-        return self.clone(self.fromNode, self.toNode)
+        return self.clone(self.from_node, self.to_node)
     
-    def clone(self, fromNode, toNode):
-        """Returns a clone of self, but with potentially different fromNode and toNode values."""
-        clone = connectionGene(fromNode, toNode, self.weight, self.innovationNo)
+    def clone(self, from_node, to_node):
+        """Returns a clone of self, but with potentially different from_node and to_node values."""
+        clone = Connection(from_node, to_node, self.weight, self.innov_no)
         clone.enabled = bool(self.enabled)
         return clone
     
     def save(self):
         """Returns a list containing important information about this connection."""
-        #return [self.fromNode.save(), self.toNode.save(), float(self.weight), bool(self.enabled), int(self.innovationNo)]
-        return [self.fromNode.number, self.toNode.number, float(self.weight), int(self.innovationNo), bool(self.enabled)]
-    pass
+        #return [self.from_node.save(), self.to_node.save(), float(self.weight), bool(self.enabled), int(self.innov_no)]
+        return (self.from_node.number, self.to_node.number, float(self.weight), int(self.innov_no), bool(self.enabled))
 
-class connectionHistory(object):
-    """Object for storeing information about the past connections."""
-    def __init__(self, fromNode, toNode, inno, innoNos):
-        self.fromNode = int(fromNode)
-        self.toNode = int(toNode)
-        self.innovationNumber = int(inno)
-        self.innovationNumbers = list(innoNos)
+class ConnHist:
+    """Object for storing information about the past connections."""
+    __slots__ = 'from_node', 'to_node', 'innov_no', 'innov_nos'
+    def __init__(self, from_node:int, to_node:int, inno:int, innoNos:list):
+        self.from_node = int(from_node)
+        self.to_node = int(to_node)
+        self.innov_no = int(inno)
+        self.innov_nos = list(innoNos)
         # the innovation Numbers from the connections of the
         # genome which first had this mutation
         # ourself represents the genome and allows us to test if
@@ -140,269 +155,275 @@ class connectionHistory(object):
         # as ourself is before this connection was added
     
     def __repr__(self):
-        """Return what this object should be represented by in the python interpriter."""
-        return 'connectionHistory(%s, %s, %i, %s)' % (self.fromNode, self.toNode, self.innovationNumber, str(self.innovationNumbers))
+        return f'ConnHist({self.from_node}, {self.to_node}, {self.innov_no}, {self.innov_nos})'
     
-    def matches(self, genome, fromNode, toNode):
+    def matches(self, genome, from_node, to_node):
         """Returns whether the genome matches the original genome and the connection is between the same nodes."""
-        if len(genome.genes) == len(self.innovationNumbers):
-            for gene in genome.genes:
-                if not gene.innovationNo in self.innovationNumbers:
-                    return False
-            # If reached this far then innovationNumbers matches the gene
-            # innovation numbers and the connection between the same nodes,
-            # so it does match
-            return True
+        if len(genome.genes) == len(self.innov_nos):
+            if from_node.number == self.from_node and to_node.number == self.to_node:
+                for gene in genome.genes:
+                    if not gene.innov_no in self.innov_nos:
+                        return False
+                # If reached this far then innov_nos matches the gene
+                # innovation numbers and the connection between the same nodes,
+                # so it does match
+                return True
         return False
     
     def clone(self):
         """Returns a clone of self."""
-        clone = connectionHistory(self.fromNode, self.toNode, self.innovationNumber, self.innovationNumbers)
+        clone = ConnHist(self.from_node, self.to_node, self.innov_no, self.innov_nos)
         return clone
     
     def save(self):
         """Returns a list of important information about this history object."""
-        return [self.fromNode, self.toNode, self.innovationNumber, self.innovationNumbers]
-    pass
+        return (self.from_node, self.to_node, self.innov_no, self.innov_nos)
 
-class Genome(object):
-    """Pretty much a brain, but it's called genome. Dunno. spagetii."""
-    def __init__(self, inputs, outputs, crossover=False):
+def matching_gene(parent, innov_no) -> Union[None, int]:
+    """Returns whether or not there is a gene matching the input innovation number in the input genome."""
+    for idx, gene in enumerate(parent.genes):
+        if gene.innov_no == innov_no:
+            return idx
+    return None#no matching gene found
+
+class Genome:
+    """Pretty much a brain, but it's called genome."""
+    mutate_random = False
+    __slots__ = 'genes', 'nodes', 'inputs', 'outputs', 'layers', 'next_node', 'bias_node', 'network'
+    def __init__(self, inputs:int, outputs:int, crossover:bool=False):
         self.genes = []# A list of connecteions between our nodes which represent the NN (node number?) 
         self.nodes = []
         self.inputs = inputs
         self.outputs = outputs
         self.layers = 2
-        self.nextNode = 0
+        self.next_node = 0
         self.network = []# A list of nodes in the order that they are needed to be considered in the NN
         # create input nodes
         
         if crossover:
-            return
+            return None
         
         for i in range(inputs):
-            self.nodes.append(Node(i))
-            self.nextNode += 1
-            self.nodes[i].layer = 0
+            node = Node(i)
+            node.layer = 0
+            self.nodes.append(node)
+            self.next_node += 1
         
         # create output nodes
         for i in range(outputs):
             self.nodes.append(Node(i + self.inputs))
             self.nodes[i + self.inputs].layer = 1
-            self.nextNode += 1
+            self.next_node += 1
         
-        self.nodes.append(Node(self.nextNode))
-        self.biasNode = int(self.nextNode)
-        self.nextNode += 1
-        self.nodes[self.biasNode].layer = 0
+        # add bias node
+        self.nodes.append(Node(self.next_node))
+        self.bias_node = self.next_node
+        self.next_node += 1
+        self.nodes[self.bias_node].layer = 0
+        return None
     
     def __repr__(self):
         """Return what this object should be represented by in the python interpriter."""
-        return '<Genome Object with %i layers, Bias node is %i, %i Nodes, and %i Genes>' % (self.layers, self.biasNode, len(self.nodes), len(self.genes))
+        return f'<Genome Object with {self.layers} layers, Bias node is {self.bias_node}, {len(self.nodes)} nodes, and {len(self.genes)} genes>'
     
-    def getInnovationNumber(self, innovationHistory, fromNode, toNode):
+    def getinnov_no(self, innovation_history:ConnHist, from_node:Node, to_node:Node) -> int:
         """Returns the innovation number for the new mutation."""
-        isNew = True
-        connectionInnovationNumber = 0
-        for i in range(len(innovationHistory)):
-            if innovationHistory[i].matches(self, fromNode, toNode):
-                isNew = False
-                connectionInnovationNumber = innovationHistory[i].innovationNumber
+        is_new = True
+        connectioninnov_no:int = 0
+        for innov in innovation_history:
+            if innov.matches(self, from_node, to_node):
+                is_new = False
+                connectioninnov_no = innov.innov_no
                 break
         
-        if isNew:
+        if is_new:
             # if the mutation is new then create an arrayList of varegers representing the current state of the genome
-##            innoNumbers = []
-##            for i in range(len(self.genes)):
-##                innoNumbers.append(self.genes[i].innovationNo)
-            innoNumbers = [gene.innovationNo for gene in self.genes]
-            innovationHistory.append(connectionHistory(fromNode.number, toNode.number, connectionInnovationNumber, innoNumbers))
-            connectionInnovationNumber += 1
-        return connectionInnovationNumber
+            inno_nos = [gene.innov_no for gene in self.genes]
+            innovation_history.append(ConnHist(from_node.number, to_node.number, connectioninnov_no, inno_nos))
+            connectioninnov_no += 1
+        return connectioninnov_no
     
-    def connectNodes(self):
+    def connect_nodes(self):
         """Adds the connections going out of a node to that node so that it can acess the next node during feeding forward."""
         # Clear connections
-        for i in range(len(self.nodes)):
-            self.nodes[i].outputConnections = []
-        # For each connection, add the corrosponding gene to the node.
-        for i in range(len(self.genes)):
-            self.genes[i].fromNode.outputConnections.append(self.genes[i])
-    
-    def fullyConnect(self, innovationHistory):
-        """Connects all nodes to eachother."""
-        for i in range(self.inputs):
-            for ii in range(self.outputs):
-                connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.nodes[i], self.nodes[len(self.nodes) - ii - 2])
-                self.genes.append(connectionGene(self.nodes[i], self.nodes[len(self.nodes) - ii - 2], random(-100, 100)/100, connectionInnovationNumber))
-        
-        connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.nodes[self.biasNode], self.nodes[len(self.nodes) - 2])
-        self.genes.append(connectionGene(self.nodes[self.biasNode], self.nodes[len(self.nodes) - 2], random(-100, 100)/100, connectionInnovationNumber))
-        
-        connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.nodes[self.biasNode], self.nodes[len(self.nodes) - 3])
-        self.genes.append(connectionGene(self.nodes[self.biasNode], self.nodes[len(self.nodes) - 3], random(-100, 100)/100, connectionInnovationNumber))
-        
-        self.connectNodes()
-    
-    def getNode(self, nodeNumber):
-        """Returns the node with a matching number, as sometimes the this.nodes will not be in order."""
         for node in self.nodes:
-            if node.number == nodeNumber:
+            node.output_connections.clear()
+        # For each connection, add the corrosponding gene to the node.
+        for gene in self.genes:
+            gene.from_node.output_connections.append(gene)
+    
+    def fully_connect(self, innovation_history) -> None:
+        """Connects all nodes to eachother."""
+        for inode in (self.nodes[i] for i in range(self.inputs)):
+            for onode in (self.nodes[len(self.nodes) - ii - 2] for ii in range(self.outputs)):
+                connectioninnov_no = self.getinnov_no(innovation_history, inode, onode)
+                self.genes.append(Connection(inode, onode, random.random()*2-1, connectioninnov_no))
+        bias = self.nodes[self.bias_node]
+        connectioninnov_no = self.getinnov_no(innovation_history, bias, self.nodes[len(self.nodes) - 2])
+        self.genes.append(Connection(bias, self.nodes[len(self.nodes) - 2], random.random()*2-1, connectioninnov_no))
+        
+        connectioninnov_no = self.getinnov_no(innovation_history, bias, self.nodes[len(self.nodes) - 3])
+        self.genes.append(Connection(bias, self.nodes[len(self.nodes) - 3], random.random()*2-1, connectioninnov_no))
+        
+        self.connect_nodes()
+        return None
+    
+    def get_node(self, node_no:int) -> Node:
+        """Returns the node with a matching number, as sometimes self.nodes will not be in order."""
+        for node in self.nodes:
+            if node.number == node_no:
                 return node
         return None
     
-    def feedForward(self, inputValues):
-        """Feeding in input values varo the NN and returning list."""
+    def feed_forward(self, input_values:tuple) -> tuple:
+        """Feeding in input values for the NN and return output."""
         # Set the outputs of the input nodes
-        for i in range(len(self.inputs)):
-            self.nodes[i].outputValue = inputValues[i]
+        for i in range(self.inputs):
+            self.nodes[i].output_value = input_values[i]
         
-        self.nodes[self.biasNode].outputValue = 1#Output of bias is 1
+        self.nodes[self.bias_node].output_value = 1#Output of bias is 1
         
-        for i in range(len(self.network)):
-            # for each node in the network engage it
-            self.network[i].engage()
+        for node in self.network:
+            node.engage()
         
         # the outputs are the self.nodes[inputs] to self.nodes[inputs+outputs-1]
         outs = {}
         for i in range(self.outputs):
-            outs[i] = self.nodes[self.inputs + 1].outputValue
+            outs[i] = self.nodes[self.inputs + 1].output_value
         
         # reset all nodes for the next feed forward
-        for i in range(len(self.nodes)):
-            self.nodes[i].inputSum = 0
+        for node in self.nodes:
+            node.input_sum = 0
         
-        return [outs[k] for k in sorted(list(outs.keys()))]
+        return tuple(outs[k] for k in sorted(list(outs.keys())))
     
-    def generateNetwork(self):
-        """Sets up the Nural Network (finally found what that was reffering to) as a list of self.nodes in order to be engaged."""
-        self.connectNodes()
+    def gen_network(self) -> None:
+        """Sets up the Nural Network as a list of self.nodes in order to be engaged."""
+        self.connect_nodes()
         self.network = []
         # For each layer add the node in that layer, since layers cannot connect to themselves there is no need to order the nodes within a layer
         for layer in range(self.layers):
-            for node in self.nodes:# For each node
+            for node in self.nodes:
                 if node.layer == layer:# If the node is in that layer
                     self.network.append(node)# Add that node to the network
+        return None
     
-    def fullyConnected(self):
+    def fully_connected(self):
         """Returns whether the network is fully connected or not."""
-        maxConnections = 0
-        nodesInLayers = {}#Dictionary which stored the amount of nodes in each layer
-        for layer in range(self.layers):
-            nodesInLayers[layer] = 0
-        
+        max_conns = 0
+        #Dictionary which stored the amount of nodes in each layer
+        nodes_in_layers = {l:0 for l in range(self.layers)}
         # Populate dictionary
         for node in self.nodes:
-            nodesInLayers[node.layer] += 1
+            nodes_in_layers[node.layer] += 1
         
         # for each layer the maximum ammount of connections is the number of the
         # layer times the number of nodes in front of it.
-        # so lets add the max fir each layer together and then we will get
+        # so lets add the max for each layer together and then we will get
         # the maximum ammount of connections in the network
         for layer in range(self.layers):
-            nodesInFront = 0
+            nodes_in_front = 0
             #for i in range(layer + 1, self.layers):# for each layer in front of this layer,
-            for i in range(layer):
-                nodesInFront += nodesInLayers[i]# add up nodes
+            for i in range(layer+1, self.layers):
+                nodes_in_front += nodes_in_layers[i]# add up nodes
             
-            maxConnections += nodesInLayers[layer] * nodesInFront
+            max_conns += nodes_in_layers[layer] * nodes_in_front
         #if the number of connections is equal to the max number of connections possible then it is full
-        return maxConnections <= len(self.genes)
+        return max_conns <= len(self.genes)
     
-    def randomConnectionNodesAreBad(self, r1, r2):
+    def random_conn_nodes_bad(self, rn_1, rn_2):
         """Returns True if the two given nodes, r1 and r2, are on the same layer or are connected to eachother. Bad code bullet for original name. Bad you."""
-        if self.nodes[r1].layer == self.nodes[r2].layer:
+        if self.nodes[rn_1].layer == self.nodes[rn_2].layer:
             return True# if the nodes are in the same layer
-        if self.nodes[r1].isConnectedTo(self.nodes[r2]):
+        if self.nodes[rn_1].is_connected_to(self.nodes[rn_2]):
             return True#if the nodes are already connected
         return False
     
-    def addConnection(self, innovationHistory):
+    def add_conn(self, innovation_history) -> None:
         """Adds a connection between two nodes which aren't currently connected."""
         # Cannot add a connection to a fully connected network
-        if self.fullyConnected():
+        if self.fully_connected():
             print('Connection failed.')
             raise RuntimeError('Cannot add a connection to a fully connected network.')
         
         # Get random node
-        randomNode1 = random.randint(0, len(self.nodes)-1)
-        randomNode2 = random.randint(0, len(self.nodes)-1)
+        random_node1 = random.randrange(len(self.nodes))
+        random_node2 = random.randrange(len(self.nodes))
         # If the nodes are the same or are connected, get new random nodes
-        while self.randomConnectionNodesAreBad(randomNode1, randomNode2):
-            randomNode1 = random.randint(0, len(self.nodes)-1)
-            randomNode2 = random.randint(0, len(self.nodes)-1)
+        while self.random_conn_nodes_bad(random_node1, random_node2):
+            random_node1 = random.randrange(len(self.nodes))
+            random_node2 = random.randrange(len(self.nodes))
         # if the first random node is after the second, then switch them
-        if self.nodes[randomNode1].layer > self.nodes[randomNode2].layer:
-            randomNode1, randomNode2 = [randomNode2, randomNode1]
+        if self.nodes[random_node1].layer > self.nodes[random_node2].layer:
+            random_node1, random_node2 = random_node2, random_node1
         # get the innovation number of the connection
         # this will be a new number if no identical genome has mutated in the same way
-        connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.nodes[randomNode1], self.nodes[randomNode2])
+        connectioninnov_no = self.getinnov_no(innovation_history, self.nodes[random_node1], self.nodes[random_node2])
         
         # Add the connection with a random dictionary
-        self.genes.append(connectionGene(self.nodes[randomNode1], self.nodes[randomNode2], random.randint(-100, 100)/100, connectionInnovationNumber))
-        self.connectNodes()
+        self.genes.append(Connection(self.nodes[random_node1], self.nodes[random_node2], random.random()*2-1, connectioninnov_no))
+        self.connect_nodes()
+        return None
     
-    def addNode(self, innovationHistory):
+    def add_node(self, innovation_history):
         """Pick a random connection to create a node between."""
-        if not len(self.genes):
-            self.addConnection(innovationHistory)
+        if not self.genes:
+            self.add_conn(innovation_history)
         
-        randomConnection = random.randint(0, len(self.genes)-1)
-        while self.genes[randomConnection].fromNode == self.nodes[self.biasNode] and len(self.genes) != 1:
-            randomConnection = random.randint(0, len(self.genes)-1)
+        random_conn = random.choice(self.genes)
+        while random_conn.from_node == self.nodes[self.bias_node] and len(self.genes) != 1:
+            random_conn = random.choice(self.genes)
         
-        self.genes[randomConnection].enabled = False# Disable it
+        random_conn.enabled = False# Disable it
         
-        newNodeNo = int(self.nextNode)
-        self.nodes.append(Node(newNodeNo))
-        self.nextNode += 1
+        new_node_no = int(self.next_node)
+        self.nodes.append(Node(new_node_no))
+        self.next_node += 1
         
         # Add a new connection to the new node with a weight of 1
-        connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.genes[randomConnection].fromNode, self.getNode(newNodeNo))
-        self.genes.append(connectionGene(self.genes[randomConnection].fromNode, self.getNode(newNodeNo), 1, connectionInnovationNumber))
+        new_node = self.get_node(new_node_no)
+        connectioninnov_no = self.getinnov_no(innovation_history, random_conn.from_node, new_node)
+        self.genes.append(Connection(random_conn.from_node, new_node, 1, connectioninnov_no))
         
-        connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.getNode(newNodeNo), self.genes[randomConnection].toNode)
-        self.getNode(newNodeNo).layer = self.genes[randomConnection].fromNode.layer + 1
+        connectioninnov_no = self.getinnov_no(innovation_history, new_node, random_conn.to_node)
+        new_node.layer = random_conn.from_node.layer + 1
         
-        connectionInnovationNumber = self.getInnovationNumber(innovationHistory, self.nodes[self.biasNode], self.getNode(newNodeNo))
+        connectioninnov_no = self.getinnov_no(innovation_history, self.nodes[self.bias_node], new_node)
         #connect the bias to the new node with a weight of 0
-        self.genes.append(connectionGene(self.nodes[self.biasNode], self.getNode(newNodeNo), 0, connectionInnovationNumber))
+        self.genes.append(Connection(self.nodes[self.bias_node], new_node, 0, connectioninnov_no))
         
         # If the layer of the new node is equal to the layer of the output node
         # of the old connection, then the new layer needs the be created more
         # accurately the layer numbers of all layers equal to or greater than
         # this new node need to be incrimented
-        if self.getNode(newNodeNo).layer == self.genes[randomConnection].toNode.layer:
-            for i in range(len(self.nodes)-1):
-                if self.nodes[i].layer >= self.getNode(newNodeNo).layer:
-                    self.nodes[i].layer += 1
+        if new_node.layer == random_conn.to_node.layer:
+            for node in self.nodes[:-1]:
+                if node.layer >= new_node.layer:
+                    node.layer += 1
             self.layers += 1
-        self.connectNodes()
+        self.connect_nodes()
     
-    def mutate(self, innovationHistory):
+    def mutate(self, innovation_history) -> None:
         """Mutates the genome in random ways."""
-        if not len(self.genes):
-            self.addConnection(innovationHistory)
-        
-        rand1 = random.randint(0, 100)
-        if rand1 < 80:#80% of the time mutate weights
-            for i in range(len(self.genes)):
-                self.genes[i].mutateWeight()
-        
-        rand2 = random.randint(0, 100)
-        if rand2 < 5:#5% of the time add a new connection
-            self.addConnection(innovationHistory)
-
-        rand3 = random.randint(0, 100)
-        if rand3 < 1:#1% of the time add a node
-            self.addNode(innovationHistory)
-    
-    def matchingGene(self, parent2, innovationNumber):
-        """Returns whether or not there is a gene matching the input innovation number in the input genome."""
-        for i in range(len(parent2.genes)):
-            if parent2.genes[i].innovationNo == innovationNumber:
-                return i
-        return None#no matching gene found
+        if not self.genes:
+            self.add_conn(innovation_history)
+        if self.mutate_random:
+            if random.randint(0, 9) < 8:#80% of the time mutate weights
+                for gene in self.genes:
+                    gene.mutate_weight()
+            
+            if random.randint(0, 99) < 5:#5% of the time add a new connection
+                self.add_conn(innovation_history)
+            
+            if random.randint(0, 99) == 0:#1% of the time add a node
+                self.add_node(innovation_history)
+            return None
+        # Do all mutations
+        for gene in self.genes:
+            gene.mutate_weight()
+        self.add_conn(innovation_history)
+        self.add_node(innovation_history)
+        return None
     
     def crossover(self, parent2):
         """Called when this genome is better than other parent."""
@@ -410,28 +431,28 @@ class Genome(object):
         child.genes = []
         child.nodes = []
         child.layers = int(self.layers)
-        child.nextNode = int(self.nextNode)
-        child.biasNode = int(self.biasNode)
-        childGenes = []#list of genes to be inherrited from the parents
-        isEnabled = []
+        child.next_node = int(self.next_node)
+        child.bias_node = int(self.bias_node)
+        child_genes = []#list of genes to be inherrited from the parents
+        is_enabled = []
         # All inheareted genes
-        for i in range(len(self.genes)):
-            setEnabled = True
-            parent2gene = self.matchingGene(parent2, self.genes[i].innovationNo)
+        for gene in self.genes:
+            set_enabled = True
+            parent2gene = matching_gene(parent2, gene.innov_no)
             if not parent2gene is None:#if the genes match
-                if not self.genes[i].enabled or not parent2.genes[parent2gene].enabled:
+                if not gene.enabled or not parent2.genes[parent2gene].enabled:
                     # if either of the matching genes are disabled
                     if random.randint(0, 100) < 75:#75% of the time disable the child's gene
-                        setEnabled = False
+                        set_enabled = False
                 rand = random.randint(0, 100)
                 if rand > 5:#Get gene from ourselves, we are better #by the way original was <. odd.
-                    childGenes.append(self.genes[i])
+                    child_genes.append(gene)
                 else:#Otherwise, get gene from parent2 which is worse
-                    childGenes.append(parent2.genes[parent2gene])
+                    child_genes.append(parent2.genes[parent2gene])
             else:#disjoit or excess gene
-                childGenes.append(self.genes[i])
-                setEnabled = self.genes[i].enabled
-            isEnabled.append(setEnabled)
+                child_genes.append(gene)
+                set_enabled = gene.enabled
+            is_enabled.append(set_enabled)
         
         # since all excess and disjovar genes are inherrited from the more
         # fit parent (this Genome) the childs structure is no different from
@@ -442,39 +463,39 @@ class Genome(object):
             child.nodes.append(node.clone())
         
         # Clone all the connections so that they connect the child's new nodes
-        for i in range(len(childGenes)):
-            child.genes.append(childGenes[i].clone(child.getNode(childGenes[i].fromNode.number), child.getNode(childGenes[i].toNode.number)))
-            child.genes[i].enabled = isEnabled[i]
+        for idx, gene in enumerate(child_genes):
+            child.genes.append(gene.clone(child.get_node(gene.from_node.number), child.get_node(gene.to_node.number)))
+            gene.enabled = is_enabled[idx]
         
-        child.connectNodes()
+        child.connect_nodes()
         return child
         
-    def printGeneome(self):
+    def print_geneome(self):
         """Prints out information about genome."""
         print('Private genome layers:', self.layers)
-        print('Bias node:', self.biasNode)
+        print('Bias node:', self.bias_node)
         print('Nodes:')
         print(*[node.number for node in self.nodes], sep=', ')
         print('Genes:')
-        for i in range(len(self.genes)):#for each connectionGene
-            print("Gene " + this.genes[i].innovationNo + "From node " + this.genes[i].fromNode.number + "To node " + this.genes[i].toNode.number +
-            "is enabled " + this.genes[i].enabled + "from layer " + this.genes[i].fromNode.layer + "to layer " + this.genes[i].toNode.layer + "weight: " + this.genes[i].weight)
+        for gene in self.genes:#for each Connection
+            print(f'Gene {gene.innov_no} From node {gene.from_node.number} To node {gene.to_node.number}'
+            f'is enabled:{gene.enabled} from layer {gene.from_node.layer} to layer {gene.to_node.layer} weight: {gene.weight}')
         print()
     
     def __copy__(self):
         """Returns a copy of self."""
         clone = Genome(self.inputs, self.outputs, True)
         # Copy our nodes
-        for i in range(len(self.nodes)):
-            clone.nodes.append(self.nodes[i].clone())
+        for node in self.nodes:
+            clone.nodes.append(node.clone())
         # Copy all the connections so that they connect to the clone's new nodes
-        for i in range(len(self.genes)):
-            clone.genes.append(self.genes[i].clone(clone.getNode(self.genes[i].fromNode.number), clone.getNode(self.genes[i].toNode.number)))
+        for gene in self.genes:
+            clone.genes.append(gene.clone(clone.get_node(gene.from_node.number), clone.get_node(gene.to_node.number)))
         
         clone.layers = int(self.layers)
-        clone.nextNode = int(self.nextNode)
-        clone.biasNode = int(self.biasNode)
-        clone.connectNodes()
+        clone.next_node = int(self.next_node)
+        clone.bias_node = int(self.bias_node)
+        clone.connect_nodes()
         
         return clone
     
@@ -482,391 +503,238 @@ class Genome(object):
         """Returns a copy of this genome"""
         return self.__copy__()
     
-    def drawGenome(self, screen, startX, startY, w, h):
-        """Draws the nurons in this genome to the screen."""
-        raise NotImplemented('drawGenome has not been implemented, as the system is running headless at the moment.')
-    
     def save(self):
         """Returns important information about this Genome Object."""
         genes = [gene.save() for gene in self.genes]
         nodes = [node.save() for node in self.nodes]
-        return [self.inputs, self.outputs, genes, nodes, self.layers, self.nextNode, self.biasNode]
+        return [self.inputs, self.outputs, genes, nodes, self.layers, self.next_node, self.bias_node]
     
     @classmethod
     def load(cls, data):
         """Returns a new Genome Object based on save data input."""
         self = cls(*data[:2], False)
-        self.inputs, self.outputs, genes, nodes, self.layers, self.nextNode, self.biasNode = data
+        self.inputs, self.outputs, genes, nodes, self.layers, self.next_node, self.bias_node = data
         self.nodes = [Node.load(i) for i in nodes]
-        tmpgenes = [[connectionGene(self.getNode(frm), self.getNode(to), w, i), e] for frm, to, w, i, e in genes]
+        tmpgenes = [[Connection(self.get_node(frm), self.get_node(to), weight, inno), enabled]
+                    for frm, to, weight, inno, enabled in genes]
         self.genes = []
-        for gene, e in tmpgenes:
-            gene.enabled = bool(e)
+        for gene, enabled in tmpgenes:
+            gene.enabled = bool(enabled)
             self.genes.append(gene)
-        #self.connectNodes() already called in generateNetwork
-        self.generateNetwork()
+        #self.connect_nodes() already called in gen_network
+        self.gen_network()
         return self
-    pass
 
-class GameEntity(object):
-    """Base Class for all entities. Stolen from my (me is CoolCat467) base2d module."""
-    def __init__(self, world, name, image, **kwargs):
-        self.world = world
-        self.name = name
-        self.image = image
-        self.base_image = image
-        
-        self.location = Vector2()
-        self.destination = Vector2()
-        self.speed = 0
-        self.scan = 100
-        if not self.image is None:
-            self.scan = int(get_surf_len(self.image)/2) + 2
-        
-        self.showhitbox = False
-        self.show = True
-        self.doprocess = True
-        
-        keys = list(kwargs.keys())
-        if 'location' in keys:
-            self.location = Vector2(*kwargs['location'])
-        if 'destination' in keys:
-            self.location = Vector2(*kwargs['destination'])
-        if 'speed' in keys:
-            self.speed = kwargs['speed']
-        if 'hitbox' in keys:
-            self.showhitbox = bool(kwargs['hitbox'])
-        if 'scan' in keys:
-            self.scan = int(kwargs['scan'])
-        if 'show' in keys:
-            self.show = bool(kwargs['show'])
-        
-        self.brain = None
-        
-        self.id = 0
-    
-    def __repr__(self):
-        return '<%s GameEntity>' % self.name.title()
-    
-    def __str__(self):
-        return self.__repr__
-    
-    def render(self, surface):
-        """Render an entity and it's hitbox if showhitbox is True, and blit it to the surface"""
-        x, y = list(self.location)
-        try:
-            x, y = float(x), float(y)
-        except TypeError as e:
-            print(x, y)
-            print('TypeError in Render!')
-            raise TypeError(str(e))
-        w, h = self.image.get_size()
-        if self.show:
-            surface.blit(self.image, (x-w/2, y-h/2))
-        if self.showhitbox:
-            pygame.draw.rect(surface, [0]*3, self.get_col_rect(), 1)
-            if self.scan:
-                pygame.draw.circle(surface, [0, 0, 60], toint([x, y]), self.scan, 1)
-        
-    
-    def process(self, time_passed):
-        """Process brain and move according to time passed if speed > 0 and not at destination"""
-        if self.doprocess:
-            self.brain.think()
-            
-            if self.speed > 0 and self.location != self.destination:
-                #vec_to_dest = self.destination - self.location
-                #distance_to_dest = vec_to_dest.get_length()
-                vec_to_dest = Vector2.from_points(self.location, self.destination)
-                distance_to_dest = self.location.get_distance_to(self.destination)
-                heading = vec_to_dest.get_normalized()
-                # prevent going back and forward really fast once it make it close to destination
-                travel_distance = min(distance_to_dest, (time_passed * self.speed))
-                self.location += heading * round(travel_distance)
-    
-    def get_xywh(self):
-        """Return x and y position and width and height of self.image for collision"""
-        # Return x pos, y pos, width, and height for collision
-        x, y = self.location
-        w, h = (0, 0)
-        if not self.image is None:
-            w, h = self.image.get_size()
-        x -= w/2
-        y -= h/2
-        return x, y, w, h
-    
-    def get_col_rect(self):
-        """Return a rect for collision"""
-        rect = pygame.rect.Rect(*self.get_xywh())
-        return rect
-    
-    def is_over(self, point):
-        """Return True if point is over self.image"""
-        # Return True if a point is over image
-        point_x, point_y = point
-        x, y, w, h = self.get_xywh()
-        
-        in_x = point_x >= x and point_x < x + w
-        in_y = point_y >= y and point_y < y + h
-        
-        return in_x and in_y
-    
-    def collision(self, sprite):
-        """Return True if a sprite's image is over self.image"""
-        # Return True if a sprite's image is over our image
-        rs = self.get_col_rect()#rect self
-        ro = sprite.get_col_rect()#rect other
-        
-        return bool(rs.colliderect(ro))
-    
-    def collide(self, entityname, action):
-        """For every entity with the name of entityname, call action(self, entity)"""
-        for entity in self.world.get_type(entityname):
-            if entity is not None:
-                if self.collision(entity):
-                    action(self, entity)
-    
-    def relative_side(self, entity):
-        """Return what side of an entity we are on, to be used with collision"""
-        # THIS IS VERY BROKEN PLZ FIX
-        wall = hasattr(entity, 'side')
-        sides = ['top', 'right', 'bottom', 'left']# 45:'top right', 135:'bottom right', 225:'bottom left', 315:'top left'}
-        sloc = self.location
-        eloc = entity.location
-        rect = entity.get_col_rect()
-        vec = Vector2.from_points(sloc, eloc)
-        if not wall:
-            final = [i*90 for i in range(4)]
-            first = [i*45 for i in range(8)]
-            rsides = [rect.midtop, rect.midright, rect.midbottom, rect.midleft]
-            #rsides = [Vector2(x, y) for x, y in rsides]
-            #side_deg = [atan2(v.y, v.x) for v in rsides]
-            side_deg = [round((heading_to_degrees( Vector2.from_points(entity.location, Vector2(x, y)).get_normalized()) + 360) % 360) for x, y in rsides]
-            deg = 360 - round((heading_to_degrees(vec.get_normalized())) % 360)
-            if deg <= 45:
-                deg = 0
-            sdeg = closest(round(deg), side_deg)
-            num = side_deg.index(sdeg)
-            
-            return sides[num]
-        elif wall:
-            return entity.side
-        return None
-    pass
-
-class BasePlayer(GameEntity):
+class BasePlayer:
     """Base class for a player object. Many functions simply pass instead of doing stuff."""
-    def __init__(self, world, name, image, **kwargs):
-        GameEntity.__init__(self, world, name, image, **kwargs)
+    def __init__(self):
         self.fitness = 0
         self.vision = []#The input array for the nural network
         self.decision = []#The output of the nural network
-        self.unadjustedFitness = 0
+        self.unadjusted_fitness = 0
         self.lifespan = 0#How long the player lived for fitness
-        self.bestScore = 0#Stores the score achived used for replay
+        self.best_score = 0#Stores the score achived used for replay
         self.dead = False
         self.score = 0
         self.gen = 0
         
-        self.genomeInputs = 5
-        self.genomeOutputs = 2
+        self.genome_inputs = 5
+        self.genome_outputs = 2
         self.brain = None
         self.start()
     
-    def start(self):
-        """Function that gets called during initialization, sets brain to a Genome Object with self.genomeInputs, self.genomeOutputs as arguments."""
-        self.brain = Genome(self.genomeInputs, self.genomeOutputs)
-
-    def show(self, screen):
-        """Renders this player to the screen."""
-        self.render(screen)
+    def start(self) -> None:
+        """Function that gets called during initialization, sets brain to a Genome Object with self.genome_inputs, self.genome_outputs as arguments."""
+        self.brain = Genome(self.genome_inputs, self.genome_outputs)
     
-    def move(self, time_passed_secconds):
-        """Updates the player's position."""
-        self.process(time_passed_secconds)
+    def update(self) -> None:
+        """Move the player according to the outputs from the neural network"""
+##        print(self.decision)
+##        do = self.decision.index(max(self.decision))
+        return
     
-    def update(self, time_passed_secconds):
-        """Updates the player."""
-        self.move(time_passed_secconds)
+    def look(self) -> None:
+        """Get inputs for brain"""
+        self.vision = [random.random()*2-1 for _ in range(self.genome_inputs)]
     
-    def look(self):
-        pass
-    
-    def think(self):
-        self.decision = self.brain.feedForward(self.vision)
-        self.do = self.decision.index(max(self.decision))
-        pass
+    def think(self) -> None:
+        """Use outputs from neural network"""
+        self.decision = self.brain.feed_forward(self.vision)
     
     def clone(self):
         """Returns a clone of self."""
-        clone = BasePlayer()
+        clone = self.__class__()
         clone.brain = self.brain.clone()
         clone.fitness = float(self.fitness)
-        clone.brain.generateNetwork()
+        clone.brain.gen_network()
         clone.gen = int(self.gen)
-        clone.bestScore = float(self.score)
+        clone.best_score = float(self.score)
         return clone
     
-    def cloneForReplay(self):
+    def clone_for_replay(self):
         """Returns a clone for a non-existant replay."""
         return self.clone()
     
-    def calculateFitness(self):
+    def calculate_fitness(self):
         """Calculates the fitness of the AI."""
         self.fitness = random.randint(0, 10)
     
     def crossover(self, parent2):
         """Returns a BasePlayer object by crossing over our brain and parent2's brain."""
-        child = BasePlayer()
+        child = self.__class__()
         child.brain = self.brain.crossover(parent2.brain)
-        child.brain.generateNetwork()
+        child.brain.gen_network()
         return child
     
     def save(self):
         """Returns a list containing important information about ourselves."""
-        return [self.brain.save(), self.gen, self.dead, self.bestScore, self.score]
+        return self.brain.save(), self.gen, self.dead, self.best_score, self.score
     
     @classmethod
     def load(cls, data):
         """Returns a BasePlayer Object with save data given."""
         self = cls()
-        brain, self.gen, self.dead, self.bestScore, self.score = data
-        self.genomeInputs, self.genomeOutputs = brain[:2]
+        brain, self.gen, self.dead, self.best_score, self.score = data
+        self.genome_inputs, self.genome_outputs = brain[:2]
         self.brain = Genome.load(brain)
         return self
-    pass
 
-class Species(object):
+class Species:
     """Species object, containing large groups of players."""
     def __init__(self, player=None):
         self.players = []
-        self.bestFitness = 0
+        self.best_fitness = 0
         self.champ = None
-        self.averageFitness = 0
         self.staleness = 0
         # how many generations have gone without an improvement
         self.rep = None
         
         # Co-efficiants for testing compadibility
-        self.excessCoeff = 1
-        self.weightDiffCoeff = 0.5
-        self.compatibilityThreshold = 3
+        self.excess_coeff = 1
+        self.w_diff_coeff = 0.5
+        self.compat_threshold = 3
         if player:
             self.players.append(player)
             # Since it is the only one in the spicies it is by default the best
-            self.bestFitness = player.fitness
+            self.best_fitness = player.fitness
             self.rep = player.brain.clone()
-            self.champ = player.cloneForReplay()
+            self.champ = player.clone_for_replay()
     
     def __repr__(self):
         """Return what this object should be represented by in the python interpriter."""
         return '<Species Object>'
     
     @staticmethod
-    def getExcessDisjoint(brain1, brain2):
+    def get_excess_disjoint(brain1, brain2):
         """Returns the number of excess and disjoint genes."""
         matching = 0
         for gene1 in brain1.genes:
             for gene2 in brain2.genes:
-                if gene1.innovationNo == gene2.innovationNo:
+                if gene1.innov_no == gene2.innov_no:
                     matching += 1
                     break
         # Return number of excess and disjoint genes
         return (len(brain1.genes) + len(brain2.genes) - 2) * matching
     
     @staticmethod
-    def averageWeightDiff(brain1, brain2):
+    def avg_w_diff(brain1, brain2):
         """Returns the average weight difference between two brains."""
-        if not len(brain1.genes) or not len(brain2.genes):
+        if not brain1.genes or not brain2.genes:
             return 0
         matching = 0
-        totalDiff = 0
+        total_diff = 0
         for gene1 in brain1.genes:
             for gene2 in brain2.genes:
-                if gene1.innovationNo == gene2.innovationNo:
+                if gene1.innov_no == gene2.innov_no:
                     matching += 1
-                    totalDiff += abs(gene1.weight - gene2.weight)
+                    total_diff += abs(gene1.weight - gene2.weight)
                     break
 ##        if not matching:
 ##            return 100#devide by zero error otherwise
-        return 100 if not matching else totalDiff / matching
+        return 100 if not matching else total_diff / matching
     
-    def sameSpecies(self, genome):
+    def same_species(self, genome):
         """Returns if a genime is in this species."""
-        excessAndDisjoint = self.getExcessDisjoint(genome, self.rep)
-        averageWeightDiff = self.averageWeightDiff(genome, self.rep)
-        largeGenomeNormalizer = max(len(genome.genes) - 20, 1)
+        excess_and_disjoint = self.get_excess_disjoint(genome, self.rep)
+        avg_w_diff = self.avg_w_diff(genome, self.rep)
+        large_genome_normalizer = max(len(genome.genes) - 20, 1)
         # compatibility formula
-        compatibility = (self.excessCoeff * excessAndDisjoint / largeGenomeNormalizer) + (self.weightDiffCoeff * averageWeightDiff)
-        return self.compatibilityThreshold > compatibility
+        compatibility = (self.excess_coeff * excess_and_disjoint / large_genome_normalizer) + (self.w_diff_coeff * avg_w_diff)
+        return self.compat_threshold > compatibility
     
-    def addToSpecies(self, player):
+    def add_to_species(self, player):
         """Adds player to this species."""
         self.players.append(player)
     
-    def sortSpecies(self):
+    def sort_species(self) -> None:
         """Sorts the species by their fitness."""
         temp = []
-        for i in range(len(self.players)):
+        for _ in range(len(self.players)):
             pmax = 0
-            pmaxIndex = 0
-            for ii in range(len(self.players)):
-                if self.players[ii].fitness > pmax:
-                    pmax = self.players[ii].fitness
-                    pmaxIndex = ii
-            temp.append(self.players[pmaxIndex])
-            del self.players[pmaxIndex]
+            pmax_idx = 0
+            for idx, player in enumerate(self.players):
+                if player.fitness > pmax:
+                    pmax = player.fitness
+                    pmax_idx = idx
+            temp.append(self.players[pmax_idx])
+            del self.players[pmax_idx]
         
         self.players = temp.copy()
-        if not len(self.players):
+        if not self.players:
             self.staleness = 200
-            return
+            return None
         # if new best player
-        if self.players[0].fitness > self.bestFitness:
+        if self.players[0].fitness > self.best_fitness:
             self.staleness = 0
-            self.bestFitness = self.players[0].fitness
-            #self.rep = self.players[0].cloneForReplay()
+            self.best_fitness = self.players[0].fitness
+            #self.rep = self.players[0].clone_for_replay()
             self.rep = self.players[0].brain.clone()
         else:# If no new best player,
             self.staleness += 1
+        return None
     
-    def setAverage(self):
+    @property
+    def average_fitness(self) -> float:
         """Calculates the average fitness of this species."""
-        if not len(self.players):
-            self.averageFitness = 0
-            return
-        self.averageFitness = sum(player.fitness for player in self.players) / len(self.players)
+        if not self.players:
+            self.average_fitness = 0
+            return 0.0
+        return sum(p.fitness for p in self.players) / len(self.players)
     
-    def fitnessSharing(self):
+    def fitness_sharing(self):
         """Divides each player's fitness by the number of players."""
-        for i in range(len(self.players)):
-            self.players[i].fitness /= len(self.players)
-    
-    def selectPlayer(self):
-        """Selects a player based on it's fitness."""
-        fitnessSum = sum([player.fitness for player in self.players])
-        rand = random.randint(0, int(fitnessSum))
-        runningSum = 0
         for player in self.players:
-            runningSum += player.fitness
-            if runningSum > rand:
+            player.fitness /= len(self.players)
+    
+    def select_player(self):
+        """Selects a player based on it's fitness."""
+        if len(self.players) == 0:
+            raise RuntimeError('No players!')
+        fitness_sum = math.floor(sum([player.fitness for player in self.players]))
+        rand = 0
+        if fitness_sum > 0:
+            rand = random.randrange(fitness_sum)
+        running_sum = 0
+        for player in self.players:
+            running_sum += player.fitness
+            if running_sum > rand:
                 return player
         return self.players[0]
     
-    def giveMeBaby(self, innovationHistory):
+    def give_me_baby(self, innovation_history):
         """Returns a baby by either cloneing the best player or crossing over the two highest graded fitness players."""
-        if random.randint(0, 100) < 25:#25% of the time there is no crossover and child is a clone of a semi-random player
-            baby = self.selectPlayer().clone()
+        if random.randint(0, 3) == 0:#25% of the time there is no crossover and child is a clone of a semi-random player
+            baby = self.select_player().clone()
         else:
-            parent1 = self.selectPlayer()
-            parent2 = self.selectPlayer()
+            parent1 = self.select_player()
+            parent2 = self.select_player()
             
             # The crossover function expects the highest fitness parent
             # to be the object and the seccond parent as the argument
             if parent1.fitness < parent2.fitness:
                 parent1, parent2 = [parent2, parent1]
             baby = parent1.crossover(parent2)
-        baby.brain.mutate(innovationHistory)
+        baby.brain.mutate(innovation_history)
         return baby
     
     def cull(self):
@@ -878,13 +746,12 @@ class Species(object):
         """Returns a clone of self."""
         clone = Species()
         clone.players = [player.clone() for player in self.players]
-        clone.bestFitness = float(self.bestFitness)
+        clone.best_fitness = float(self.best_fitness)
         clone.champ = self.champ.clone()
-        clone.setAverage()
         clone.staleness = int(self.staleness)
-        clone.excessCoeff = float(self.excessCoeff)
-        clone.weightDiffCoeff = float(self.weightDiffCoeff)
-        clone.compatibilityThreshold = float(self.compatibilityThreshold)
+        clone.excess_coeff = float(self.excess_coeff)
+        clone.w_diff_coeff = float(self.w_diff_coeff)
+        clone.compat_threshold = float(self.compat_threshold)
         return clone
     
     def __copy__(self):
@@ -895,46 +762,47 @@ class Species(object):
         """Returns a list containing important information about this species."""
         players = [player.save() for player in self.players]
         champ = self.champ.save()
-        rep = self.rep.save()
-        return [players, self.bestFitness, champ, self.staleness, self.excessCoeff, self.weightDiffCoeff, self.compatibilityThreshold]
-    pass
+##        rep = self.rep.save()
+        return [players, self.best_fitness, champ, self.staleness, self.excess_coeff, self.w_diff_coeff, self.compat_threshold]
 
-class Population(object):
+class Population:
     """Population Object, stores groups of species."""
-    def __init__(self, size):
+    player = BasePlayer
+    def __init__(self, size, addPlayers=True):
         self.players = []
-        self.bestPlayer = None
-        self.bestScore = 0
-        self.globalBestScore = 0
+        self.best_player = None
+        self.best_score = 0
+        self.global_best_score = 0
         self.gen = 1
-        self.innovationHistory = []
-        self.genPlayers = []
+        self.innovation_history = []
+        self.gen_players = []
         self.species = []
         
-        self.massExtinctionEvent = False
-        self.newStage = True
+        self.batch_no = 0
+        self.worlds_per_batch = 1
         
-        for i in range(size):
-            self.players.append(BasePlayer())
-            self.players[len(self.players)-1].brain.mutate(self.innovationHistory)
-            self.players[len(self.players)-1].brain.generateNetwork()
+        self.mass_extinction_event = False
+        self.new_stage = True
+        
+        if addPlayers:
+            for _ in range(size):
+                self.players.append(self.player())
+                self.players[-1].brain.mutate(self.innovation_history)
+                self.players[-1].brain.gen_network()
     
     def __repr__(self):
         """Return what this object should be represented by in the python interpriter."""
-        return '<Population Object with %i Players and %i Generations>' % (len(self.players), self.gen)
+        return f'<Population Object with {len(self.players)} Players and {self.gen} Generations>'
     
-    def updateAlive(self):
+    def update_alive(self):
         """Updates all of the players that are alive."""
-        for i in range(len(self.players)):
-            player = self.players[i]
+        for player in list(self.players):
             if not player.dead:
                 player.look()#Get inputs for brain
                 player.think()#Use outputs from neural network
                 player.update()#Move the player according to the outputs from the neural network
-                if not showNothing and (not showBest or not I):
-                    player.show()
-                if player.score > self.globalBestScore:
-                    self.globalBestScore = player.score
+                if player.score > self.global_best_score:
+                    self.global_best_score = player.score
     
     def done(self):
         """Returns True if all the players are dead. :("""
@@ -943,166 +811,164 @@ class Population(object):
                 return False
         return True
     
-    def setBestPlayer(self):
+    def setbest_player(self):
         """Sets the best player globally and for current generation."""
         if not (self.species and self.species[0].players):
             return
-        tempBest = self.species[0].players[0]
-        tempBest.gen = self.gen
+        temp_best = self.species[0].players[0]
+        temp_best.gen = self.gen
         
-        if tempBest.score >= self.bestScore:
-            bestClone = tempBest.cloneForReplay()
-            self.genPlayers.append(bestClone)
+        if temp_best.score >= self.best_score:
+            best_clone = temp_best.clone_for_replay()
+            self.gen_players.append(best_clone)
             #print stuff was here, removed
-            self.bestScore = tempBest.score
-            self.bestPlayer = bestClone
+            self.best_score = temp_best.score
+            self.best_player = best_clone
     
-    def spectate(self):
+    def seperate(self):
         """Seperate players into species based on how similar they are to the leaders of the species in the previous generation."""
         # Empty current species
-        for s in self.species:
-            del s.players[:]
+        for specie in self.species:
+            del specie.players[:]
         # For each player,
         for player in self.players:
-            speciesFound = False
+            species_found = False
             # For each species
-            for s in self.species:
-                if s.sameSpecies(player.brain):
-                    s.addToSpecies(player)
-                    speciesFound = True
+            for specie in self.species:
+                if specie.same_species(player.brain):
+                    specie.add_to_species(player)
+                    species_found = True
                     break
-            if not speciesFound:
+            if not species_found:
                 self.species.append(Species(player))
     
-    def calculateFitness(self):
+    def calculate_fitness(self):
         """Calculate the fitness of each player."""
         for player in self.players:
-            player.calculateFitness()
+            player.calculate_fitness()
     
-    def sortSpecies(self):
+    def sort_species(self):
         """Sort the species to be ranked in fitness order, best first."""
         for species in self.species:
-            species.sortSpecies()
+            species.sort_species()
         # Sort the species by a fitness of its best player
         # using selection sort like a loser
         temp = []
-        for i in range(len(self.species)):
+##        for i in range(len(self.species)):
+        for _ in range(len(self.species)):
             smax = 0
-            maxIndex = 0
-            for ii in range(len(self.species)):
-                if self.species[ii].bestFitness > smax:
-                    smax = self.species[ii].bestFitness
-                    maxIndex = ii
-            temp.append(self.species[maxIndex])
-            del self.species[maxIndex]
+            max_idx = 0
+            for idx, specie in enumerate(self.species):
+                if specie.best_fitness > smax:
+                    smax = specie.best_fitness
+                    max_idx = idx
+            temp.append(self.species[max_idx])
+            del self.species[max_idx]
         self.species = temp
     
-    def massExtinction(self):
+    def mass_extinction(self):
         """For all the species but the top five, kill them all."""
-        for s in range(5, len(self.species)):
-            del self.species[s]
+        for species in range(5, len(self.species)):
+            del self.species[species]
     
-    def cullSpecies(self):
+    def cull_species(self):
         """Kill off the bottom half of each species."""
-        for s in self.species:
-            s.cull()
-            s.fitnessSharing()#Also while we're at it do fitness sharing
-            s.setAverage()
+        for species in self.species:
+            species.cull()
+            #Also while we're at it do fitness sharing
+            species.fitness_sharing()
     
-    def killStaleSpecies(self):
+    def kill_stale_species(self):
         """Kills all species which haven't improved in 15 generations."""
         for i in range(len(self.species)-1, -1, -1):
             if self.species[i].staleness >= 15:
                 del self.species[i]
     
-    def getAvgFitnessSum(self):
+    def get_avg_fitness_sum(self):
         """Returns the sum of the average fitness for each species."""
-        return sum([s.averageFitness for s in self.species])
+        return sum([s.average_fitness for s in self.species])
     
-    def killBadSpecies(self):
+    def kill_bad_species(self):
         """Kill species which are so bad they can't reproduce."""
-        averageSum = self.getAvgFitnessSum()
-        if not averageSum:
+        average_sum = self.get_avg_fitness_sum()
+        if not average_sum:
             return
         for i in range(len(self.species)-1, -1, -1):
-            if self.species[i].averageFitness / averageSum * len(self.players) < 1:
+            if self.species[i].average_fitness / average_sum * len(self.players) < 1:
                 del self.species[i]
     
-    def naturalSelection(self):
+    def natural_selection(self):
         """This function is called when all players in the player list are dead and a new generation needs to be made."""
-        previousBest = self.players[0]
-        self.spectate()#Seperate players into species
-        self.calculateFitness()#Calculate the fitness of each player
-        self.sortSpecies()#Sort the species to be ranked in fitness order, best first
-        if self.massExtinctionEvent:
-            self.massExtinction()
-            self.massExtinctionEvent = False
-        self.cullSpecies()#Kill off the bottom half of each species
-        self.setBestPlayer()#Save the best player of this generation
-        self.killStaleSpecies()#Remove species which haven't improved in 15 generations
-        self.killBadSpecies()#Kill species which are so bad they can't reproduce
+        previous_best = self.players[0]
+        self.seperate()#Seperate players into species
+        self.calculate_fitness()#Calculate the fitness of each player
+        self.sort_species()#Sort the species to be ranked in fitness order, best first
+        if self.mass_extinction_event:
+            self.mass_extinction()
+            self.mass_extinction_event = False
+        self.cull_species()#Kill off the bottom half of each species
+        self.setbest_player()#Save the best player of this generation
+        self.kill_stale_species()#Remove species which haven't improved in 15 generations
+        self.kill_bad_species()#Kill species which are so bad they can't reproduce
         
-        averageSum = self.getAvgFitnessSum()
-        if averageSum == 0:
-            averageSum = 0.1
+        average_sum = self.get_avg_fitness_sum()
+        if average_sum == 0:
+            average_sum = 0.1
         children = []
         for species in self.species:
             children.append(species.champ.clone())#Add champion without any mutation
-            NoOfChildren = round((species.averageFitness / averageSum * len(self.players)) - 1)
-            for i in range(NoOfChildren):
-                children.append(species.giveMeBaby(self.innovationHistory))
+            child_count = round((species.average_fitness / average_sum * len(self.players)) - 1)
+            for _ in range(child_count):
+                children.append(species.give_me_baby(self.innovation_history))
         if len(children) < len(self.players):
-            children.append(previousBest.clone())
+            children.append(previous_best.clone())
         while len(children) < len(self.players):#If not enough babys
             if self.species:
-                children.append(self.species[0].giveMeBaby(self.innovationHistory))#Get babys from the past generation
+                children.append(self.species[0].give_me_baby(self.innovation_history))#Get babys from the past generation
             else:
-                clone = previousBest.clone()
-                clone.brain.mutate(self.innovationHistory)
+                clone = previous_best.clone()
+                clone.brain.mutate(self.innovation_history)
                 children.append(clone)
         
-        self.players = [child for child in children]
+        self.players = children
         self.gen += 1
         for player in self.players:
-            player.brain.generateNetwork()
+            player.brain.gen_network()
     
-    def playerInBatch(self, player, worlds):
+    def player_in_batch(self, player, worlds):
         """Returns True if a player is in worlds...???"""
-        b = self.batchNo * self.worldsPerBatch
-        e = min((self.batchNo + 1) * self.worldsPerBatch, len(worlds))
-        for i in range(b, e):
+        batch = int(self.batch_no * self.worlds_per_batch)
+        worldc = int(min((self.batch_no + 1) * self.worlds_per_batch, len(worlds)))
+        for i in range(batch, worldc):
             if player.world == worlds[i]:
                 return True
         return False
     
-    def updateAliveInBatches(self, worlds, showBest):
+    def update_alive_in_batches(self, worlds):
         """Update all the players that are alive."""
-        aliveCount = 0
-        for i in range(len(self.players)):
-            player = self.players[i]
-            if self.playerInBatch(player, worlds):
+        alive = 0
+        for player in list(self.players):
+            if self.player_in_batch(player, worlds):
                 if not player.dead:
                     alive += 1
                     player.look()
                     player.think()
                     player.update()
-                    if not showNothing and (showBest or i == 0):
-                        player.show()
-                    if player.score > self.globalBestScore:
-                        self.globalBestScore = player.score
+                    if player.score > self.global_best_score:
+                        self.global_best_score = player.score
     
-    def stepWorldsInBatch(self, worlds, FPS=30, arg2=10, arg3=10):
+    def step_worlds_in_batch(self, worlds, FPS=30, arg2=10, arg3=10):
         """For each world, call world.step(FPS, arg2, arg3)"""
-        b = self.batchNo * self.worldsPerBatch
-        e = min((self.batchNo + 1) * self.worldsPerBatch, len(worlds))
-        for i in range(b, e):
+        batch = self.batch_no * self.worlds_per_batch
+        worldc = min((self.batch_no + 1) * self.worlds_per_batch, len(worlds))
+        for i in range(batch, worldc):
             worlds[i].Step(FPS, arg2, arg3)
     
-    def batchDead(self):
+    def batch_dead(self, worlds):
         """Returns True if all the players in a batch are dead. :("""
-        b = self.batchNo * self.worldsPerBatch
-        e = min((self.batchNo + 1) * self.worldsPerBatch, len(worlds))
-        for i in range(b, e):
+        batch = int(self.batch_no * self.worlds_per_batch)
+        worlds = int(min((self.batch_no + 1) * self.worlds_per_batch, len(worlds)))
+        for i in range(batch, worlds):
             if not self.players[i].dead:
                 return False
         return True
@@ -1111,12 +977,12 @@ class Population(object):
         """Returns a clone of self."""
         clone = Population(len(self.players))
         clone.players = [player.clone() for player in self.players]
-        clone.bestPlayer = self.bestPlayer.clone()
-        clone.bestScore = float(self.bestScore)
-        clone.globalBestScore = float(self.globalBestScore)
+        clone.best_player = self.best_player.clone()
+        clone.best_score = float(self.best_score)
+        clone.global_best_score = float(self.global_best_score)
         clone.gen = int(self.gen)
-        clone.innovationHistory = [ih.clone() for ih in self.innovationHistory]
-        clone.genPlayers = [player.clone() for player in self.genPlayers]
+        clone.innovation_history = [ih.clone() for ih in self.innovation_history]
+        clone.gen_players = [player.clone() for player in self.gen_players]
         clone.species = [sep.clone() for sep in self.species]
         return clone
     
@@ -1127,122 +993,58 @@ class Population(object):
     def save(self):
         """Returns a list containing all important data."""
         players = [player.save() for player in self.players]
-        bestp = self.bestPlayer.save()
-        innoh = [innohist.save() for innohist in self.innovationHistory]
-        genplayers = [gplayer.save() for gplayer in self.genPlayers]
+        bestp = self.best_player.save()
+        innoh = [innohist.save() for innohist in self.innovation_history]
+        gen_players = [gplayer.save() for gplayer in self.gen_players]
         species = [specie.save() for specie in self.species]
-        return [players, bestp, self.bestScore, self.globalBestScore, self.gen, innoh, genplayers, species]
+        return [players, bestp, self.best_score, self.global_best_score, self.gen, innoh, gen_players, species]
     
     @classmethod
     def load(cls, data):
-        """Returns a Population Object using save data."""
-        self = cls(len(data[0]))
-        players, bestp, self.bestScore, self.globalBestScore, self.gen, innoh, genplayers, species = data
-        self.players = [BasePlayer.load(pdat) for pdat in players]
-        self.bestPlayer = BasePlayer.load(bestp)
-        self.innovationHistory = [connectionHistory(*i) for i in innoh]
+        """Returns Population Object using save data."""
+        self = cls(len(data[0]), False)
+        players, bestp, self.best_score, self.global_best_score, self.gen, innoh, gen_players, species = data
+        self.gen_players = [self.player.load(gplayer) for gplayer in gen_players]
+        self.players = [self.player.load(pdat) for pdat in players]
+        self.best_player = self.player.load(bestp)
+        self.innovation_history = [ConnHist(*i) for i in innoh]
         return self
-    pass
-
-def typ(x):
-    """Returns 0 if type is a list, returns 1 if type is a string, returns 2 if type is int or float, returns 3 if type is boolian, None if no matches."""
-##    if hasattr(x, '__reversed__'):
-##        return 0
-##    elif hasattr(x, 'capitalize'):
-##        return 1
-##    elif hasattr(x, 'real'):
-##        if str(x) in ('True', 'False'):
-##            return 3
-##        return 2
-    thing = str(type(x))
-    if thing in [str(type([])), str(type([]))]:
-        return 0
-    if thing == str(type(str('Why hello there'))):
-        return 1
-    if thing == str(type(bool(1))):
-        return 3
-    if thing == str(type(8675309)):
-        return 2
-    return None
 
 def save(data, filename):
     """Save data to a file."""
-    infl = lambda x: int(x) if round(float(x)) == float(x) else float(x)
-    def sv(filedata, incount, lst):
-        filedata.append(' '*incount+'{\n')
-        incount += 2
-        for thing in lst:
-            t = typ(thing)
-            if t == 0:
-                if len(thing):
-                    filedata, incount = sv(filedata, incount, thing)
-                else:
-                    filedata.append(' '*incount+'{}\n')
-                #filedata.append(' '*incount+'/'+'&'.join(thing)+'/\n')
-            elif t == 1:
-                filedata.append(' '*incount+'$'+thing+'$\n')
-            elif t == 2:
-                filedata.append(' '*incount+'N'+str(infl(thing))+'N\n')
-            elif t == 3:
-                filedata.append(' '*incount+'@'+str(thing)+'@\n')
-        incount -= 2
-        filedata.append(' '*incount+'}\n')
-        return filedata, incount
-    filedata, _ = sv([], 0, data)
-    with open(filename, 'w') as saveFile:
-        saveFile.write(''.join(filedata))
-        saveFile.close()
+    with open(filename, 'w', encoding='utf-8') as save_file:
+        json.dump(data, save_file)
+        save_file.close()
 
 def load(filename):
     """Return data retreved from a file."""
-    infl = lambda x: int(x) if round(float(x)) == float(x) else float(x)
-    def ld(data, lst, idx):
-        add = []
-        while True:
-            if idx >= len(lst):
-                break
-            line = lst[idx]
-            sp = line.count(' ')
-            text = line[sp:]
-            t = text[0]
-            if text == '{}':
-                add.append([])
-                idx += 1
-                continue
-            if t == '{':
-                idx += 1
-                fromNext, idx = ld(add, lst, idx)
-                #print(fromNext, add)
-                add.append(fromNext)
-            elif t == '}':
-                break
-            elif t == '$':
-                add.append(text[1:-1])
-            elif t == 'N':
-                add.append(infl(text[1:-1]))
-            elif t == '@':
-                add.append(True if text[1:-1] == 'True' else False)
-            idx += 1
-        return add, idx
-    with open(filename, 'r') as loadFile:
-        filedata = loadFile.read().splitlines()
-        loadFile.close()
-    data, _ = ld([], filedata, 0)
-    return data[0]
+    data = []
+    with open(filename, 'r', encoding='utf-8') as load_file:
+        data = json.load(load_file)
+        load_file.close()
+    return data
 
-if __name__ == '__main__':
+def run():
+    """Run example."""
     print('Starting example.')
     try:
-        data = load('AI_Data.txt')
+        data = load('AI_Data.json')
     except FileNotFoundError:
-        cat = Population(5)
+        pop = Population(5)
     else:
-        print('AI Data loaded from AI_Data.txt')
-        cat = Population.load(data)
+        print('AI Data loaded from AI_Data.json')
+        pop = Population.load(data)
+    print(pop)
     print('Running Natural Selection program 100 times...')
-    [cat.naturalSelection() for i in range(100)]
+    for i in range(100):
+        pop.natural_selection()
+        pop.update_alive()
+        print(i)
     print('Natural Selection done.')
     print(cat)
-    print('Saving AI data to AI_Data.txt...')
-    save(cat.save(), 'AI_Data.txt')
+    print('Saving AI data to AI_Data.json...')
+    save(pop.save(), 'AI_Data.json')
     print('Done.')
+
+if __name__ == '__main__':
+    run()
