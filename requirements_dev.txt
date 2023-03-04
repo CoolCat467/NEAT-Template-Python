@@ -1,0 +1,5 @@
+black==23.1.0 # must match .pre-commit-config.yaml
+isort==5.12.0 # must match .pre-commit-config.yaml
+mypy==1.0.1
+pycln==2.1.3  # must match .pre-commit-config.yaml
+pre-commit

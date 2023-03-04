@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# NEAT Artificial Intelligence Template Module ported from CodeBullet JavaScript code.
+# NEAT Artificial Intelligence Template Module ported from CodeBullet JavaScript code
 
 """NEAT Artificial Intelligence Template Module ported from CodeBullet JavaScript code"""
 
@@ -39,7 +39,13 @@ NodeSave = tuple[int, int, tuple[int, ...]]
 
 class Node:
     "Represents a neuron in a brain."
-    __slots__ = ("number", "input_sum", "output_value", "output_connections", "layer")
+    __slots__ = (
+        "number",
+        "input_sum",
+        "output_value",
+        "output_connections",
+        "layer",
+    )
 
     def __init__(self, number: int) -> None:
         self.number: int = number
@@ -113,7 +119,13 @@ ConnectionSave = tuple[int, int, float, int, bool]
 
 class Connection:
     "Object representing a connection between two node objects."
-    __slots__ = ("from_node", "to_node", "weight", "enabled", "innovation_number")
+    __slots__ = (
+        "from_node",
+        "to_node",
+        "weight",
+        "enabled",
+        "innovation_number",
+    )
 
     def __init__(
         self, from_node: Node, to_node: Node, weight: float, inno: int
@@ -146,7 +158,9 @@ class Connection:
 
     def clone(self, from_node: Node, to_node: Node) -> "Connection":
         "Returns a clone of self, but with potentially different from_node and to_node values."
-        clone = self.__class__(from_node, to_node, self.weight, self.innovation_number)
+        clone = self.__class__(
+            from_node, to_node, self.weight, self.innovation_number
+        )
         clone.enabled = bool(self.enabled)
         return clone
 
@@ -166,10 +180,19 @@ HistorySave = tuple[int, int, int, list[int]]
 
 class History:
     "Object for storing information about the past connections."
-    __slots__ = ("from_node", "to_node", "innovation_number", "innovation_numbers")
+    __slots__ = (
+        "from_node",
+        "to_node",
+        "innovation_number",
+        "innovation_numbers",
+    )
 
     def __init__(
-        self, from_node: int, to_node: int, inno: int, innovation_numbers: list[int]
+        self,
+        from_node: int,
+        to_node: int,
+        inno: int,
+        innovation_numbers: list[int],
     ) -> None:
         self.from_node = from_node
         self.to_node = to_node
@@ -184,10 +207,15 @@ class History:
     def __repr__(self) -> str:
         return f"History({self.from_node}, {self.to_node}, {self.innovation_number}, {self.innovation_numbers})"
 
-    def matches(self, genome: "Genome", from_node: Node, to_node: Node) -> bool:
+    def matches(
+        self, genome: "Genome", from_node: Node, to_node: Node
+    ) -> bool:
         "Returns True if genomes are the same."
         if len(genome.genes) == len(self.innovation_numbers):
-            if from_node.number == self.from_node and to_node.number == self.to_node:
+            if (
+                from_node.number == self.from_node
+                and to_node.number == self.to_node
+            ):
                 for gene in genome.genes:
                     if not gene.innovation_number in self.innovation_numbers:
                         return False
@@ -226,7 +254,9 @@ def matching_gene(parent: "Genome", innovation_number: int) -> int | None:
     return None
 
 
-GenomeSave = tuple[int, int, list[ConnectionSave], list[NodeSave], int, int, int]
+GenomeSave = tuple[
+    int, int, list[ConnectionSave], list[NodeSave], int, int, int
+]
 
 
 class Genome:
@@ -244,7 +274,9 @@ class Genome:
         "network",
     )
 
-    def __init__(self, inputs: int, outputs: int, crossover: bool = False) -> None:
+    def __init__(
+        self, inputs: int, outputs: int, crossover: bool = False
+    ) -> None:
         # A list of connections between our nodes which represent the neural network
         self.genes: list[Connection] = []
         self.nodes: list[Node] = []
@@ -298,7 +330,9 @@ class Genome:
             # if the mutation is new then record current state of the genome
             inno_nos = [gene.innovation_number for gene in self.genes]
             innovation_history.append(
-                History(from_node.number, to_node.number, conn_innov_no, inno_nos)
+                History(
+                    from_node.number, to_node.number, conn_innov_no, inno_nos
+                )
             )
             conn_innov_no += 1
         return conn_innov_no
@@ -316,11 +350,16 @@ class Genome:
         "Connects all nodes to each other."
         for inode in (self.nodes[i] for i in range(self.inputs)):
             for onode in (
-                self.nodes[len(self.nodes) - ii - 2] for ii in range(self.outputs)
+                self.nodes[len(self.nodes) - ii - 2]
+                for ii in range(self.outputs)
             ):
-                conn_innov_no = self.get_innov_no(innovation_history, inode, onode)
+                conn_innov_no = self.get_innov_no(
+                    innovation_history, inode, onode
+                )
                 self.genes.append(
-                    Connection(inode, onode, random.random() * 2 - 1, conn_innov_no)
+                    Connection(
+                        inode, onode, random.random() * 2 - 1, conn_innov_no
+                    )
                 )
         bias = self.nodes[self.bias_node]
         conn_innov_no = self.get_innov_no(
@@ -369,7 +408,8 @@ class Genome:
 
         # the outputs are the self.nodes[inputs] to self.nodes[inputs+outputs-1]
         outs = {
-            i: self.nodes[self.inputs + 1].output_value for i in range(self.outputs)
+            i: self.nodes[self.inputs + 1].output_value
+            for i in range(self.outputs)
         }
 
         # reset all nodes for the next feed forward
@@ -431,7 +471,9 @@ class Genome:
         # Cannot add a connection to a fully connected network
         if self.fully_connected():
             print("Connection failed.")
-            raise RuntimeError("Cannot add a connection to a fully connected network.")
+            raise RuntimeError(
+                "Cannot add a connection to a fully connected network."
+            )
 
         # Get random node
         random_node1 = random.randrange(len(self.nodes))
@@ -446,7 +488,9 @@ class Genome:
         # get the innovation number of the connection
         # this will be a new number if no identical genome has mutated in the same way
         conn_innov_no = self.get_innov_no(
-            innovation_history, self.nodes[random_node1], self.nodes[random_node2]
+            innovation_history,
+            self.nodes[random_node1],
+            self.nodes[random_node2],
         )
 
         # Add the connection with a random dictionary
@@ -481,7 +525,9 @@ class Genome:
         conn_innov_no = self.get_innov_no(
             innovation_history, random_conn.from_node, new_node
         )
-        self.genes.append(Connection(random_conn.from_node, new_node, 1, conn_innov_no))
+        self.genes.append(
+            Connection(random_conn.from_node, new_node, 1, conn_innov_no)
+        )
 
         conn_innov_no = self.get_innov_no(
             innovation_history, new_node, random_conn.to_node
@@ -516,7 +562,9 @@ class Genome:
                 for gene in self.genes:
                     gene.mutate_weight()
 
-            if random.randint(0, 99) < 5:  # 5% of the time add a new connection
+            if (
+                random.randint(0, 99) < 5
+            ):  # 5% of the time add a new connection
                 self.add_conn(innovation_history)
 
             if random.randint(0, 99) == 0:  # 1% of the time add a node
@@ -653,7 +701,12 @@ class Genome:
         ) = data
         self.nodes = [Node.load(i) for i in nodes]
         tmpgenes = [
-            (Connection(self.get_node(frm), self.get_node(to), weight, inno), enabled)
+            (
+                Connection(
+                    self.get_node(frm), self.get_node(to), weight, inno
+                ),
+                enabled,
+            )
             for frm, to, weight, inno, enabled in genes
         ]
         self.genes = []
@@ -704,7 +757,9 @@ class BasePlayer:
 
     def look(self) -> None:
         "Get inputs for brain"
-        self.vision = [random.random() * 2 - 1 for _ in range(self.genome_inputs)]
+        self.vision = [
+            random.random() * 2 - 1 for _ in range(self.genome_inputs)
+        ]
 
     def think(self) -> None:
         "Use outputs from neural network"
@@ -735,7 +790,13 @@ class BasePlayer:
 
     def save(self) -> PlayerSave:
         """Returns a list containing important information about ourselves."""
-        return self.brain.save(), self.gen, self.dead, self.best_score, self.score
+        return (
+            self.brain.save(),
+            self.gen,
+            self.dead,
+            self.best_score,
+            self.score,
+        )
 
     @classmethod
     def load(cls, data: PlayerSave) -> "BasePlayer":
@@ -747,7 +808,9 @@ class BasePlayer:
         return self
 
 
-SpeciesSave = tuple[list[PlayerSave], float, PlayerSave, int, float, float, float]
+SpeciesSave = tuple[
+    list[PlayerSave], float, PlayerSave, int, float, float, float
+]
 
 
 class Species:
@@ -874,7 +937,9 @@ class Species:
         "Selects a player based on it's fitness."
         if len(self.players) == 0:
             raise RuntimeError("No players!")
-        fitness_sum = math.floor(sum(player.fitness for player in self.players))
+        fitness_sum = math.floor(
+            sum(player.fitness for player in self.players)
+        )
         rand = 0
         if fitness_sum > 0:
             rand = random.randrange(fitness_sum)
@@ -1091,7 +1156,12 @@ class Population:
         if not average_sum:
             return None
         for i in range(len(self.species) - 1, -1, -1):
-            if self.species[i].average_fitness / average_sum * len(self.players) < 1:
+            if (
+                self.species[i].average_fitness
+                / average_sum
+                * len(self.players)
+                < 1
+            ):
                 del self.species[i]
         return None
 
@@ -1134,7 +1204,9 @@ class Population:
         while len(children) < len(self.players):
             if self.species:
                 # Get babies from the past generation
-                children.append(self.species[0].give_me_baby(self.innovation_history))
+                children.append(
+                    self.species[0].give_me_baby(self.innovation_history)
+                )
             else:
                 clone = previous_best.clone()
                 clone.brain.mutate(self.innovation_history)
@@ -1148,7 +1220,9 @@ class Population:
     def player_in_batch(self, player: BasePlayer, worlds: list[World]) -> bool:
         "Returns True if a player is in worlds...???"
         batch = int(self.batch_no * self.worlds_per_batch)
-        worldc = int(min((self.batch_no + 1) * self.worlds_per_batch, len(worlds)))
+        worldc = int(
+            min((self.batch_no + 1) * self.worlds_per_batch, len(worlds))
+        )
         for i in range(batch, worldc):
             if player.world == worlds[i]:
                 return True
@@ -1168,7 +1242,11 @@ class Population:
                         self.global_best_score = player.score
 
     def step_worlds_in_batch(
-        self, worlds: list[World], fps: int = 30, arg2: int = 10, arg3: int = 10
+        self,
+        worlds: list[World],
+        fps: int = 30,
+        arg2: int = 10,
+        arg3: int = 10,
     ) -> None:
         "For each world, call world.step(fps, arg2, arg3)"
         batch = self.batch_no * self.worlds_per_batch
@@ -1179,7 +1257,9 @@ class Population:
     def batch_dead(self, worlds: list[World]) -> bool:
         "Returns True if all the players in a batch are dead. :("
         batch = int(self.batch_no * self.worlds_per_batch)
-        world_count = int(min((self.batch_no + 1) * self.worlds_per_batch, len(worlds)))
+        world_count = int(
+            min((self.batch_no + 1) * self.worlds_per_batch, len(worlds))
+        )
         for i in range(batch, world_count):
             if not self.players[i].dead:
                 return False
@@ -1193,7 +1273,9 @@ class Population:
         clone.best_score = float(self.best_score)
         clone.global_best_score = float(self.global_best_score)
         clone.gen = int(self.gen)
-        clone.innovation_history = [ih.clone() for ih in self.innovation_history]
+        clone.innovation_history = [
+            ih.clone() for ih in self.innovation_history
+        ]
         clone.gen_players = [player.clone() for player in self.gen_players]
         clone.species = [sep.clone() for sep in self.species]
         return clone
@@ -1234,7 +1316,9 @@ class Population:
             gen_players,
             species,
         ) = data
-        self.gen_players = [self.player.load(gplayer) for gplayer in gen_players]
+        self.gen_players = [
+            self.player.load(gplayer) for gplayer in gen_players
+        ]
         self.players = [self.player.load(pdat) for pdat in players]
         self.best_player = self.player.load(bestp)
         self.innovation_history = [History(*i) for i in innoh]

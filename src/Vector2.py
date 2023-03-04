@@ -24,7 +24,10 @@ class Vector2:
 
     def __init__(
         self,
-        x: int | float | list[int | float] | tuple[int | float, int | float] = 0,
+        x: int
+        | float
+        | list[int | float]
+        | tuple[int | float, int | float] = 0,
         y: int | float = 0,
     ) -> None:
         if isinstance(x, (list, tuple)):
@@ -50,7 +53,9 @@ class Vector2:
         """Return the magnitude (length) of the vector"""
         return sqrt(self.x**2 + self.y**2)
 
-    def get_distance_to(self, point: Iterable[int | float] | "Vector2") -> float:
+    def get_distance_to(
+        self, point: Iterable[int | float] | "Vector2"
+    ) -> float:
         """Get the magnitude to a point"""
         vec: "Vector2" = self.__class__.from_points(point, self)
         return vec.get_magnitude()
