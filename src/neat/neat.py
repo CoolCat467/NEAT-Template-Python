@@ -57,7 +57,7 @@ class Node:
         self.layer: int = 0
 
     def __repr__(self) -> str:
-        """Return reprentation of this node."""
+        """Return representation of this node."""
         return f"{self.__class__.__name__}({self.number})"
 
     def engage(self) -> None:
@@ -145,7 +145,7 @@ class Connection:
         self.innovation_number = inno
 
     def __repr__(self) -> str:
-        """Return reprentation of self."""
+        """Return representation of self."""
         return f"{self.__class__.__name__}({self.from_node!r}, {self.to_node!r}, {self.weight!r}, {self.innovation_number!r}) # enabled = {self.enabled}"
 
     def mutate_weight(self) -> None:
@@ -300,7 +300,7 @@ class Genome:
         outputs: int,
         crossover: bool = False,
     ) -> None:
-        """Inititalize Genome."""
+        """Initialize Genome."""
         # A list of connections between our nodes which represent the neural network
         self.genes: list[Connection] = []
         self.nodes: list[Node] = []
@@ -661,7 +661,7 @@ class Genome:
         # since all excess and disjoint genes are inherited from the more
         # fit parent (this Genome) the child's structure is no different from
         # this parent, with exception of dormant connections being enabled but
-        # this wont effect our nodes
+        # this won't effect our nodes
         # so all the nodes can be inherited from this parent
         for node in self.nodes:
             child.nodes.append(node.clone())
@@ -934,7 +934,7 @@ class Species:
                     total_diff += abs(gene1.weight - gene2.weight)
                     break
         ##        if not matching:
-        ##            return 100#devide by zero error otherwise
+        ##            return 100#divide by zero error otherwise
         return 100 if not matching else total_diff / matching
 
     def same_species(self, genome: Genome) -> bool:
@@ -1144,7 +1144,7 @@ class Population:
             self.best_player = best_clone
         return
 
-    def seperate(self) -> None:
+    def separate(self) -> None:
         """Separate players into species.
 
         Split based on how similar they are to the leaders of the species
@@ -1229,7 +1229,7 @@ class Population:
         """Generate new generation."""
         previous_best = self.players[0]
         # Separate players into species
-        self.seperate()
+        self.separate()
         # Calculate the fitness of each player
         self.calculate_fitness()
         # Sort the species to be ranked in fitness order, best first
