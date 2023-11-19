@@ -9,7 +9,7 @@ authors = [
   { name="CoolCat467" },
   { name="Code-Bullet" },
 ]
-description = "This is a Python3 Implementation of Code-Bullet's NEAT Template, originally programmed in JavaScript. This is intended to be used to easily add an AI to a game."
+description = "This is a Python3 Implementation of Code-Bullets NEAT Template, originally programmed in JavaScript. This is intended to be used to easily add an AI to a game."
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
@@ -62,7 +62,7 @@ warn_unused_ignores = true
 
 [tool.black]
 line-length = 79
-target-version = ['py311']
+target-version = ["py311"]
 
 [tool.ruff.isort]
 combine-as-imports = true
@@ -80,24 +80,24 @@ select = [
     "A",  # flake8-builtins
     "ASYNC",  # flake8-async
     "B",  # flake8-bugbear
-    'C4',
-    'COM',
-    'D',
+    "C4",  # flake8-comprehensions
+    "COM",  # flake8-commas
+    "D",  # pydocstyle
     "E",  # Error
-    'EXE',
+    "EXE",  # flake8-executable
     "F",  # pyflakes
-    'FA',
+    "FA",  # flake8-future-annotations
     "I",  # isort
-    'N',
-    'PIE',
-    'PT',
+    "N",  # pep8-naming
+    "PIE",  # flake8-pie
+    "PT",  # flake8-pytest-style
     "PYI",  # flake8-pyi
-    'Q',
-    'RET',
+    "Q",  # flake8-quotes
+    "RET",  # flake8-return
     "RUF",  # Ruff-specific rules
     "S",  # flake8-bandit
-    'SIM',
-    'SLOT',
+    "SIM",  # flake8-simplify
+    "SLOT",  # flake8-slots
     "TCH",  # flake8-type-checking
     "UP",  # pyupgrade
     "W",  # Warning
