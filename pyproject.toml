@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools >= 64"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "neat"
-version = "2.2.0"
+dynamic = ["version"]
 authors = [
   { name="CoolCat467" },
   { name="Code-Bullet" },
@@ -18,11 +18,16 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
+keywords = ["ai", "neat"]
 dependencies = []
+
+[tool.setuptools.dynamic]
+version = {attr = "neat.neat.__version__"}
 
 [project.urls]
 "Homepage" = "https://github.com/CoolCat467/NEAT-Template-Python"
@@ -71,8 +76,33 @@ line-length = 79
 fix = true
 
 include = ["*.py", "*.pyi", "**/pyproject.toml"]
-
-select = ['A', 'B', 'C4', 'COM', 'D', 'E', 'EXE', 'F', 'FA', 'I', 'N', 'PIE', 'PT', 'PYI', 'Q', 'RET', 'RUF', 'S', 'SIM', 'SLOT', 'UP', 'YTT']
+select = [
+    "A",  # flake8-builtins
+    "ASYNC",  # flake8-async
+    "B",  # flake8-bugbear
+    'C4',
+    'COM',
+    'D',
+    "E",  # Error
+    'EXE',
+    "F",  # pyflakes
+    'FA',
+    "I",  # isort
+    'N',
+    'PIE',
+    'PT',
+    "PYI",  # flake8-pyi
+    'Q',
+    'RET',
+    "RUF",  # Ruff-specific rules
+    "S",  # flake8-bandit
+    'SIM',
+    'SLOT',
+    "TCH",  # flake8-type-checking
+    "UP",  # pyupgrade
+    "W",  # Warning
+    "YTT",  # flake8-2020
+]
 ignore = [
     "D211",  # conflicts with docstrings
     "D213",  # conflicts with docstrings
@@ -84,39 +114,7 @@ ignore = [
     "D401",  # Imparative mood docstrings
 ]
 
-fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
 unfixable = ["D203"]
-
-# Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-]
-
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-[tool.ruff.mccabe]
-max-complexity = 10
 
 [tool.ruff.per-file-ignores]
 "src/neat/neat.py" = [
@@ -130,13 +128,15 @@ max-complexity = 10
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    envlist = py39, py311, pytest, mypy
+    envlist = py39, py310, py311, py312, pytest, mypy
     isolated_build = false
 
     [gh-actions]
     python =
-        3.9: py38, pytest
-        3.11: py311, pytest, mypy
+        3.9: py39, pytest
+        3.10: py310, pytest
+        3.11: py311, pytest
+        3.12: py312, pytest, mypy
 
     [testenv]
     setenv =

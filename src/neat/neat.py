@@ -15,9 +15,11 @@ __ver_patch__ = 0
 import json
 import math
 import random
-from collections.abc import Iterable
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @lru_cache(2**7)
