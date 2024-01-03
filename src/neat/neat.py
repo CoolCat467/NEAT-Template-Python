@@ -379,7 +379,7 @@ class Genome:
             gene.from_node.output_connections.append(gene)
 
     def fully_connect(self, innovation_history: list[History]) -> None:
-        """Connects all nodes to each other."""
+        """Connect all nodes to each other."""
         for inode in (self.nodes[i] for i in range(self.inputs)):
             for onode in (
                 self.nodes[len(self.nodes) - ii - 2]
@@ -437,7 +437,7 @@ class Genome:
         raise LookupError(f"Node with ID {node_no!r} does not exist!")
 
     def feed_forward(self, input_values: Iterable[float]) -> tuple[float, ...]:
-        """Feeding in input values for the neural network and return output."""
+        """Feed in input values for the neural network and return output."""
         # Set the outputs of the input nodes
         for idx, value in enumerate(input_values):
             self.nodes[idx].output_value = value
@@ -459,8 +459,8 @@ class Genome:
 
         return tuple(outs[k] for k in sorted(outs.keys()))
 
-    def gen_network(self) -> None:
-        """Sets up the neural network as a list of nodes in order to be engaged."""
+    def generate_network(self) -> list[Node]:
+        """Set up the neural network as a list of nodes in order to be engaged."""
         self.connect_nodes()
         self.network = []
         # For each layer add the node in that layer,
@@ -472,6 +472,7 @@ class Genome:
                 if node.layer == layer:
                     # Add that node to the network
                     self.network.append(node)
+        return self.network
 
     def fully_connected(self) -> bool:
         """Return whether the network is fully connected or not."""
@@ -508,7 +509,7 @@ class Genome:
         return False
 
     def add_conn(self, innovation_history: list[History]) -> None:
-        """Adds a connection between two nodes which aren't currently connected."""
+        """Add a new connection between two nodes that aren't currently connected."""
         # Cannot add a connection to a fully connected network
         if self.fully_connected():
             print("Connection failed.")
@@ -625,7 +626,7 @@ class Genome:
         return
 
     def crossover(self, parent: Genome) -> Genome:
-        """Called when this genome is better than other parent."""
+        """Return new genome by combining this genome with another."""
         child = self.__class__(int(self.inputs), int(self.outputs), True)
         child.genes = []
         child.nodes = []
@@ -682,7 +683,7 @@ class Genome:
         return child
 
     def print_geneome(self) -> None:
-        """Prints out information about genome."""
+        """Print out information about genome."""
         print("Private genome layers:", self.layers)
         print("Bias node:", self.bias_node)
         print("Nodes:")
@@ -765,8 +766,8 @@ class Genome:
         for gene, enabled in tmpgenes:
             gene.enabled = bool(enabled)
             self.genes.append(gene)
-        # self.connect_nodes() already called in gen_network
-        self.gen_network()
+        # self.connect_nodes() already called in generate_network
+        self.generate_network()
         return self
 
 
@@ -782,7 +783,6 @@ class BasePlayer:
         """Initialize BasePlayer."""
         self.fitness = 0.0
         self.vision: list[float] = []  # The input array for the neural network
-        self.decision: tuple[float, ...]  # The output of the neural network
         self.unadjusted_fitness = 0
         self.lifespan = 0  # How long the player lived for fitness
         self.best_score = 0.0  # Stores the score achieved used for replay
@@ -798,14 +798,14 @@ class BasePlayer:
         self.brain: Genome
         self.start()
 
-    def start(self) -> None:
-        """Called during initialization to setup self.brain."""
-        self.brain = Genome(self.genome_inputs, self.genome_outputs)
+    def start(self) -> Genome:
+        """Return new brain."""
+        return Genome(self.genome_inputs, self.genome_outputs)
 
-    def update(self) -> None:
+    def update(self, decision: tuple[float, ...]) -> None:
         """Move the player according to the outputs from the neural network."""
-        ##        print(self.decision)
-        ##        do = self.decision.index(max(self.decision))
+        # print(decision)
+        # do = decision.index(max(self.decision))
         return
 
     def look(self) -> None:
@@ -814,16 +814,16 @@ class BasePlayer:
             random.random() * 2 - 1 for _ in range(self.genome_inputs)
         ]
 
-    def think(self) -> None:
-        """Use outputs from neural network."""
-        self.decision = self.brain.feed_forward(self.vision)
+    def think(self) -> tuple[float, ...]:
+        """Return decision from nural network."""
+        return self.brain.feed_forward(self.vision)
 
     def clone(self) -> BasePlayer:
         """Return a clone of self."""
         clone = self.__class__()
         clone.brain = self.brain.clone()
         clone.fitness = float(self.fitness)
-        clone.brain.gen_network()
+        clone.brain.generate_network()
         clone.gen = int(self.gen)
         clone.best_score = float(self.score)
         return clone
@@ -831,14 +831,14 @@ class BasePlayer:
     clone_for_replay = clone
 
     def calculate_fitness(self) -> None:
-        """Calculates the fitness of the AI."""
+        """Calculate the fitness of the AI."""
         self.fitness = random.randint(0, 10)
 
     def crossover(self, parent: BasePlayer) -> BasePlayer:
         """Return a BasePlayer object by crossing over our brain and parent2's brain."""
         child = self.__class__()
         child.brain = self.brain.crossover(parent.brain)
-        child.brain.gen_network()
+        child.brain.generate_network()
         return child
 
     def save(self) -> PlayerSave:
@@ -951,7 +951,7 @@ class Species:
         return self.compat_threshold > compatibility
 
     def add_to_species(self, player: BasePlayer) -> None:
-        """Adds player to this species."""
+        """Add given player to this species."""
         self.players.append(player)
 
     def sort_species(self) -> None:
@@ -994,7 +994,7 @@ class Species:
             player.fitness /= len(self.players)
 
     def select_player(self) -> BasePlayer:
-        """Selects a player based on it's fitness."""
+        """Select a player based on it's fitness."""
         if len(self.players) == 0:
             raise RuntimeError("No players!")
         fitness_sum = math.floor(
@@ -1111,19 +1111,21 @@ class Population:
             for _ in range(size):
                 self.players.append(self.player())
                 self.players[-1].brain.mutate(self.innovation_history)
-                self.players[-1].brain.gen_network()
+                self.players[-1].brain.generate_network()
 
     def __repr__(self) -> str:
         """Representation of Population."""
         return f"<Population Object with {len(self.players)} Players and {self.gen} Generations>"
 
     def update_alive(self) -> None:
-        """Updates all of the players that are alive."""
+        """Update all of the players that are alive."""
         for player in list(self.players):
             if not player.dead:
                 player.look()  # Get inputs for brain
-                player.think()  # Use outputs from neural network
-                player.update()  # Move the player according to the outputs from the neural network
+                decision = player.think()  #  outputs from neural network
+                player.update(
+                    decision,
+                )  # Move the player according to the outputs from the neural network
                 if player.score > self.global_best_score:
                     self.global_best_score = player.score
 
@@ -1132,7 +1134,7 @@ class Population:
         return all(player.dead for player in self.players)
 
     def setbest_player(self) -> None:
-        """Sets the best player globally and for current generation."""
+        """Set the best player globally and for current generation."""
         if not (self.species and self.species[0].players):
             return
         temp_best = self.species[0].players[0]
@@ -1278,7 +1280,7 @@ class Population:
         self.players = children
         self.gen += 1
         for player in self.players:
-            player.brain.gen_network()
+            player.brain.generate_network()
 
     def player_in_batch(self, player: BasePlayer, worlds: list[World]) -> bool:
         """Return True if a player is in worlds...???."""
@@ -1294,9 +1296,11 @@ class Population:
         for player in list(self.players):
             if self.player_in_batch(player, worlds) and not player.dead:
                 alive += 1
-                player.look()
-                player.think()
-                player.update()
+                player.look()  # Get inputs for brain
+                decision = player.think()  #  outputs from neural network
+                player.update(
+                    decision,
+                )  # Move the player according to the outputs from the neural network
                 if player.score > self.global_best_score:
                     self.global_best_score = player.score
 
