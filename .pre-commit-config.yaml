@@ -3,8 +3,8 @@ ci:
   autofix_prs: true
   autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
   autoupdate_schedule: quarterly
-  skip: [badgie]
   submodules: false
+  skip: [badgie]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -21,24 +21,24 @@ repos:
       - id: sort-simple-yaml
         files: .pre-commit-config.yaml
   - repo: https://github.com/hadialqattan/pycln
-    rev: v2.3.0
+    rev: v2.4.0
     hooks:
       - id: pycln
         args: [--config=pyproject.toml, src]
         types: [file]
         types_or: [python, pyi]
-  - repo: https://github.com/psf/black
-    rev: 23.10.1
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 23.12.1
     hooks:
       - id: black
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.3
+    rev: v0.1.11
     hooks:
       - id: ruff
         types: [file]
         types_or: [python, pyi, toml]
-  - repo: https://gitlab.com/brettops/tools/badgie
-    rev: "0.9.0"
+  - repo: https://github.com/CoolCat467/badgie
+    rev: v0.9.5
     hooks:
       - id: badgie
   - repo: https://github.com/codespell-project/codespell

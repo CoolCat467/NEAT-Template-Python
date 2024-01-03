@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "neat"
 dynamic = ["version"]
 authors = [
-  { name="CoolCat467" },
+  { name="CoolCat467", email="CoolCat467@duck.com" },
   { name="Code-Bullet" },
 ]
 description = "This is a Python3 Implementation of Code-Bullets NEAT Template, originally programmed in JavaScript. This is intended to be used to easily add an AI to a game."
@@ -15,11 +15,15 @@ license = {file = "LICENSE"}
 requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
@@ -34,11 +38,8 @@ version = {attr = "neat.neat.__version__"}
 "Source" = "https://github.com/CoolCat467/NEAT-Template-Python"
 "Bug Tracker" = "https://github.com/CoolCat467/NEAT-Template-Python/issues"
 
-[tool.pytest.ini_options]
-addopts = "--cov-report term-missing --cov=neat"
-testpaths = [
-    "tests",
-]
+[tool.setuptools.package-data]
+neat = ["py.typed"]
 
 [tool.mypy]
 mypy_path = "src"
@@ -60,10 +61,6 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
-[tool.black]
-line-length = 79
-target-version = ["py311"]
-
 [tool.ruff.isort]
 combine-as-imports = true
 
@@ -71,58 +68,96 @@ combine-as-imports = true
 all = true
 disable_all_dunder_policy = true
 
+[tool.black]
+line-length = 79
+target-version = ["py39"]
+
 [tool.ruff]
 line-length = 79
 fix = true
 
 include = ["*.py", "*.pyi", "**/pyproject.toml"]
-select = [
-    "A",  # flake8-builtins
-    "ASYNC",  # flake8-async
-    "B",  # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "COM",  # flake8-commas
-    "D",  # pydocstyle
-    "E",  # Error
-    "EXE",  # flake8-executable
-    "F",  # pyflakes
-    "FA",  # flake8-future-annotations
-    "I",  # isort
-    "N",  # pep8-naming
-    "PIE",  # flake8-pie
-    "PT",  # flake8-pytest-style
-    "PYI",  # flake8-pyi
-    "Q",  # flake8-quotes
-    "RET",  # flake8-return
-    "RUF",  # Ruff-specific rules
-    "S",  # flake8-bandit
-    "SIM",  # flake8-simplify
-    "SLOT",  # flake8-slots
-    "TCH",  # flake8-type-checking
-    "UP",  # pyupgrade
-    "W",  # Warning
-    "YTT",  # flake8-2020
-]
-ignore = [
-    "D211",  # conflicts with docstrings
-    "D213",  # conflicts with docstrings
-##    "E203",  # conflicts with black
-    "E402",  # module level import not at top of file
-    "E501",  # conflicts with black
-    "S101",  # use of assert for tests and type narrowing
-    "D203",
-    "D401",  # Imparative mood docstrings
-]
 
-unfixable = ["D203"]
+select = [
+    "A",     # flake8-builtins
+    "ASYNC", # flake8-async
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "COM",   # flake8-commas
+    "D",     # pydocstyle
+    "E",     # Error
+    "EXE",   # flake8-executable
+    "F",     # pyflakes
+    "FA",    # flake8-future-annotations
+    "I",     # isort
+    "N",     # pep8-naming
+    "PIE",   # flake8-pie
+    "PT",    # flake8-pytest-style
+    "PYI",   # flake8-pyi
+    "Q",     # flake8-quotes
+    "RET",   # flake8-return
+    "RUF",   # Ruff-specific rules
+    "S",     # flake8-bandit
+    "SIM",   # flake8-simplify
+    "SLOT",  # flake8-slots
+    "TCH",   # flake8-type-checking
+    "UP",    # pyupgrade
+    "W",     # Warning
+    "YTT",   # flake8-2020
+]
+extend-ignore = [
+    "E501",  # line-too-long conflicts with black
+    "S101",  # use of assert for tests and type narrowing
+    "D203",  # One blank line before class
+    "D211",  # no-blank-line-before-class
+    "D213",  # multi-line-summary-second-line
+#    "E203",  # conflicts with black
+#    "E402",  # module level import not at top of file
+    "SIM117", # Use multiple with statements at the same time
+    "D417",   # "Missing argument descriptions"
+]
 
 [tool.ruff.per-file-ignores]
 "src/neat/neat.py" = [
     "S311",  # Not using random for cryptographic purposes
 ]
 "tests/*" = [
-    "D100",  # no module docstring
-    "D103",  # no docstrings
+    "D100",  # undocumented-public-module
+    "D103",  # undocumented-public-function
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov-report term-missing --cov=neat"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = []
+
+[tool.coverage.report]
+precision = 1
+skip_covered = true
+exclude_also = [
+    "pragma: no cover",
+    "abc.abstractmethod",
+    "if TYPE_CHECKING.*:",
+    "if _t.TYPE_CHECKING:",
+    "if t.TYPE_CHECKING:",
+    "@overload",
+    'class .*\bProtocol\b.*\):',
+    "raise NotImplementedError",
+]
+partial_branches = [
+    "pragma: no branch",
+    "if not TYPE_CHECKING:",
+    "if not _t.TYPE_CHECKING:",
+    "if not t.TYPE_CHECKING:",
+    "if .* or not TYPE_CHECKING:",
+    "if .* or not _t.TYPE_CHECKING:",
+    "if .* or not t.TYPE_CHECKING:",
 ]
 
 [tool.tox]
@@ -136,7 +171,7 @@ legacy_tox_ini = """
         3.9: py39, pytest
         3.10: py310, pytest
         3.11: py311, pytest
-        3.12: py312, pytest, mypy
+        3.12: py312, mypy, pytest
 
     [testenv]
     setenv =
@@ -146,7 +181,6 @@ legacy_tox_ini = """
     deps =
         pytest
         pytest-cov
-        pytest-trio
     commands = pytest --basetemp={envtmpdir}
 
     [testenv:mypy]
