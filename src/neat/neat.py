@@ -162,11 +162,11 @@ class Connection:
             self.weight = max(self.weight, -1)
 
     def __copy__(self) -> Connection:
-        """Returns a copy of self."""
+        """Return a copy of self."""
         return self.clone(self.from_node, self.to_node)
 
     def clone(self, from_node: Node, to_node: Node) -> Connection:
-        """Returns a clone of self, but with potentially different from_node and to_node values."""
+        """Return a clone of self, but with potentially different from_node and to_node values."""
         clone = self.__class__(
             from_node,
             to_node,
@@ -177,7 +177,7 @@ class Connection:
         return clone
 
     def save(self) -> ConnectionSave:
-        """Returns a list containing important information about this connection."""
+        """Return a list containing important information about this connection."""
         return (
             self.from_node.number,
             self.to_node.number,
@@ -228,7 +228,7 @@ class History:
         from_node: Node,
         to_node: Node,
     ) -> bool:
-        """Returns True if genomes are the same."""
+        """Return True if genomes are the same."""
         if len(genome.genes) == len(self.innovation_numbers) and (
             from_node.number == self.from_node
             and to_node.number == self.to_node
@@ -243,7 +243,7 @@ class History:
         return False
 
     def clone(self) -> History:
-        """Returns a clone of self."""
+        """Return a clone of self."""
         return History(
             self.from_node,
             self.to_node,
@@ -252,7 +252,7 @@ class History:
         )
 
     def save(self) -> HistorySave:
-        """Returns a list of important information about this history object."""
+        """Return a list of important information about this history object."""
         return (
             self.from_node,
             self.to_node,
@@ -262,7 +262,7 @@ class History:
 
 
 def matching_gene(parent: Genome, innovation_number: int) -> int | None:
-    """Returns index to a gene matching the input innovation number in the input genome."""
+    """Return index to a gene matching the input innovation number in the input genome."""
     for idx, gene in enumerate(parent.genes):
         if gene.innovation_number == innovation_number:
             return idx
@@ -346,7 +346,7 @@ class Genome:
         from_node: Node,
         to_node: Node,
     ) -> int:
-        """Returns the innovation number for the new mutation."""
+        """Return the innovation number for the new mutation."""
         is_new: bool = True
         conn_innov_no: int = 0
         for innov in innovation_history:
@@ -430,7 +430,7 @@ class Genome:
         self.connect_nodes()
 
     def get_node(self, node_no: int) -> Node:
-        """Returns the node with a matching number, as sometimes self.nodes will not be in order."""
+        """Return the node with a matching number, as sometimes self.nodes will not be in order."""
         for node in self.nodes:
             if node.number == node_no:
                 return node
@@ -474,7 +474,7 @@ class Genome:
                     self.network.append(node)
 
     def fully_connected(self) -> bool:
-        """Returns whether the network is fully connected or not."""
+        """Return whether the network is fully connected or not."""
         max_conns = 0
         # Dictionary which stored the amount of nodes in each layer
         nodes_in_layers = {layer: 0 for layer in range(self.layers)}
@@ -498,7 +498,7 @@ class Genome:
         return max_conns <= len(self.genes)
 
     def random_conn_nodes_bad(self, rn_1: int, rn_2: int) -> bool:
-        """Returns True if the two given nodes connected to each other."""
+        """Return True if the two given nodes connected to each other."""
         if self.nodes[rn_1].layer == self.nodes[rn_2].layer:
             # if the nodes are in the same layer
             return True
@@ -722,7 +722,7 @@ class Genome:
     clone = __copy__
 
     def save(self) -> GenomeSave:
-        """Returns important information about this Genome Object."""
+        """Return important information about this Genome Object."""
         genes = [gene.save() for gene in self.genes]
         nodes = [node.save() for node in self.nodes]
         return (
@@ -737,7 +737,7 @@ class Genome:
 
     @classmethod
     def load(cls, data: GenomeSave) -> Genome:
-        """Returns a new Genome Object based on save data input."""
+        """Return a new Genome Object based on save data input."""
         self = cls(*data[:2], False)
         (
             self.inputs,
@@ -819,7 +819,7 @@ class BasePlayer:
         self.decision = self.brain.feed_forward(self.vision)
 
     def clone(self) -> BasePlayer:
-        """Returns a clone of self."""
+        """Return a clone of self."""
         clone = self.__class__()
         clone.brain = self.brain.clone()
         clone.fitness = float(self.fitness)
@@ -835,14 +835,14 @@ class BasePlayer:
         self.fitness = random.randint(0, 10)
 
     def crossover(self, parent: BasePlayer) -> BasePlayer:
-        """Returns a BasePlayer object by crossing over our brain and parent2's brain."""
+        """Return a BasePlayer object by crossing over our brain and parent2's brain."""
         child = self.__class__()
         child.brain = self.brain.crossover(parent.brain)
         child.brain.gen_network()
         return child
 
     def save(self) -> PlayerSave:
-        """Returns a list containing important information about ourselves."""
+        """Return a list containing important information about ourselves."""
         return (
             self.brain.save(),
             self.gen,
@@ -853,7 +853,7 @@ class BasePlayer:
 
     @classmethod
     def load(cls, data: PlayerSave) -> BasePlayer:
-        """Returns a BasePlayer Object with save data given."""
+        """Return a BasePlayer Object with save data given."""
         self = cls()
         brain, self.gen, self.dead, self.best_score, self.score = data
         self.genome_inputs, self.genome_outputs = brain[:2]
@@ -912,7 +912,7 @@ class Species:
 
     @staticmethod
     def get_excess_disjoint(brain1: Genome, brain2: Genome) -> int | float:
-        """Returns the number of excess and disjoint genes."""
+        """Return the number of excess and disjoint genes."""
         matching = 0
         for gene1 in brain1.genes:
             for gene2 in brain2.genes:
@@ -924,7 +924,7 @@ class Species:
 
     @staticmethod
     def avg_w_diff(brain1: Genome, brain2: Genome) -> int | float:
-        """Returns the average weight difference between two brains."""
+        """Return the average weight difference between two brains."""
         if not brain1.genes or not brain2.genes:
             return 0
         matching = 0
@@ -940,7 +940,7 @@ class Species:
         return 100 if not matching else total_diff / matching
 
     def same_species(self, genome: Genome) -> bool:
-        """Returns if a genome is in this species."""
+        """Return if a genome is in this species."""
         excess_and_disjoint = self.get_excess_disjoint(genome, self.rep)
         avg_w_diff = self.avg_w_diff(genome, self.rep)
         large_genome_normalizer = max(len(genome.genes) - 20, 1)
@@ -1011,7 +1011,7 @@ class Species:
         return self.players[0]
 
     def give_me_baby(self, innovation_history: list[History]) -> BasePlayer:
-        """Returns a baby from either random clone or crossover of bests."""
+        """Return a baby from either random clone or crossover of bests."""
         if random.randint(0, 3) == 0:
             # 25% of the time there is no crossover and child is a clone of a semi-random player
             baby = self.select_player().clone()
@@ -1033,7 +1033,7 @@ class Species:
             self.players = self.players[int(len(self.players) / 2) :]
 
     def clone(self) -> Species:
-        """Returns a clone of self."""
+        """Return a clone of self."""
         clone = Species()
         clone.players = [player.clone() for player in self.players]
         clone.best_fitness = float(self.best_fitness)
@@ -1045,11 +1045,11 @@ class Species:
         return clone
 
     def __copy__(self) -> Species:
-        """Returns a copy of self."""
+        """Return a copy of self."""
         return self.clone()
 
     def save(self) -> SpeciesSave:
-        """Returns a list containing important information about this species."""
+        """Return a list containing important information about this species."""
         players = [player.save() for player in self.players]
         champ = self.champ.save()
         ##        rep = self.rep.save()
@@ -1128,7 +1128,7 @@ class Population:
                     self.global_best_score = player.score
 
     def done(self) -> bool:
-        """Returns True if all the players are dead. :(."""
+        """Return True if all the players are dead. :(."""
         return all(player.dead for player in self.players)
 
     def setbest_player(self) -> None:
@@ -1209,7 +1209,7 @@ class Population:
                 del self.species[i]
 
     def get_avg_fitness_sum(self) -> int | float:
-        """Returns the sum of the average fitness for each species."""
+        """Return the sum of the average fitness for each species."""
         return sum(s.average_fitness for s in self.species)
 
     def kill_bad_species(self) -> None:
@@ -1281,7 +1281,7 @@ class Population:
             player.brain.gen_network()
 
     def player_in_batch(self, player: BasePlayer, worlds: list[World]) -> bool:
-        """Returns True if a player is in worlds...???."""
+        """Return True if a player is in worlds...???."""
         batch = int(self.batch_no * self.worlds_per_batch)
         worldc = int(
             min((self.batch_no + 1) * self.worlds_per_batch, len(worlds)),
@@ -1314,7 +1314,7 @@ class Population:
             worlds[i].step(fps, arg2, arg3)
 
     def batch_dead(self, worlds: list[World]) -> bool:
-        """Returns True if all the players in a batch are dead. :(."""
+        """Return True if all the players in a batch are dead. :(."""
         batch = int(self.batch_no * self.worlds_per_batch)
         world_count = int(
             min((self.batch_no + 1) * self.worlds_per_batch, len(worlds)),
@@ -1322,7 +1322,7 @@ class Population:
         return all(self.players[i].dead for i in range(batch, world_count))
 
     def clone(self) -> Population:
-        """Returns a clone of self."""
+        """Return a clone of self."""
         clone = Population(len(self.players))
         clone.players = [player.clone() for player in self.players]
         clone.best_player = self.best_player.clone()
@@ -1337,11 +1337,11 @@ class Population:
         return clone
 
     def __copy__(self) -> Population:
-        """Returns a copy of self."""
+        """Return a copy of self."""
         return self.clone()
 
     def save(self) -> PopulationSave:
-        """Returns a list containing all important data."""
+        """Return a list containing all important data."""
         players = [player.save() for player in self.players]
         bestp = self.best_player.save()
         innoh = [innohist.save() for innohist in self.innovation_history]
@@ -1360,7 +1360,7 @@ class Population:
 
     @classmethod
     def load(cls, data: PopulationSave) -> Population:
-        """Returns Population Object using save data."""
+        """Return Population Object using save data."""
         self = cls(len(data[0]), False)
         (
             players,
