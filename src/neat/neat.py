@@ -782,9 +782,7 @@ class BasePlayer:
     def __init__(self) -> None:
         """Initialize BasePlayer."""
         self.fitness = 0.0
-        self.vision: list[float] = []  # The input array for the neural network
         self.unadjusted_fitness = 0
-        self.lifespan = 0  # How long the player lived for fitness
         self.best_score = 0.0  # Stores the score achieved used for replay
         self.dead = False
         self.score = 0.0
@@ -802,21 +800,19 @@ class BasePlayer:
         """Return new brain."""
         return Genome(self.genome_inputs, self.genome_outputs)
 
-    def update(self, decision: tuple[float, ...]) -> None:
+    def look(self) -> Iterable[float]:
+        """Return inputs for the nural network."""
+        return (random.random() * 2 - 1 for _ in range(self.genome_inputs))
+
+    def think(self, inputs: Iterable[float]) -> Iterable[float]:
+        """Return decision from nural network."""
+        return self.brain.feed_forward(inputs)
+
+    def update(self, decision: Iterable[float]) -> None:
         """Move the player according to the outputs from the neural network."""
         # print(decision)
         # do = decision.index(max(self.decision))
         return
-
-    def look(self) -> None:
-        """Get inputs for brain."""
-        self.vision = [
-            random.random() * 2 - 1 for _ in range(self.genome_inputs)
-        ]
-
-    def think(self) -> tuple[float, ...]:
-        """Return decision from nural network."""
-        return self.brain.feed_forward(self.vision)
 
     def clone(self) -> BasePlayer:
         """Return a clone of self."""
@@ -828,11 +824,9 @@ class BasePlayer:
         clone.best_score = float(self.score)
         return clone
 
-    clone_for_replay = clone
-
-    def calculate_fitness(self) -> None:
+    def calculate_fitness(self) -> float:
         """Calculate the fitness of the AI."""
-        self.fitness = random.randint(0, 10)
+        return random.randint(0, 10)
 
     def crossover(self, parent: BasePlayer) -> BasePlayer:
         """Return a BasePlayer object by crossing over our brain and parent2's brain."""
@@ -904,7 +898,7 @@ class Species:
             # Since it is the only one in the species it is by default the best
             self.best_fitness = player.fitness
             self.rep = player.brain.clone()
-            self.champ = player.clone_for_replay()
+            self.champ = player.clone()
 
     def __repr__(self) -> str:
         """Return what this object should be represented by in the python interpreter."""
@@ -975,7 +969,7 @@ class Species:
         if self.players[0].fitness > self.best_fitness:
             self.staleness = 0
             self.best_fitness = self.players[0].fitness
-            # self.rep = self.players[0].clone_for_replay()
+            # self.rep = self.players[0].clone()
             self.rep = self.players[0].brain.clone()
         else:  # If no new best player,
             self.staleness += 1
@@ -1121,11 +1115,14 @@ class Population:
         """Update all of the players that are alive."""
         for player in list(self.players):
             if not player.dead:
-                player.look()  # Get inputs for brain
-                decision = player.think()  #  outputs from neural network
-                player.update(
-                    decision,
-                )  # Move the player according to the outputs from the neural network
+                # Get inputs for nural network
+                inputs = player.look()
+                # Get nural network's decision (output) from inputs
+                decision = player.think(inputs)
+                # Move the player according to the outputs from the
+                # neural network
+                player.update(decision)
+                # Update max score
                 if player.score > self.global_best_score:
                     self.global_best_score = player.score
 
@@ -1133,7 +1130,7 @@ class Population:
         """Return True if all the players are dead. :(."""
         return all(player.dead for player in self.players)
 
-    def setbest_player(self) -> None:
+    def set_best_player(self) -> None:
         """Set the best player globally and for current generation."""
         if not (self.species and self.species[0].players):
             return
@@ -1141,7 +1138,7 @@ class Population:
         temp_best.gen = self.gen
 
         if temp_best.score >= self.best_score:
-            best_clone = temp_best.clone_for_replay()
+            best_clone = temp_best.clone()
             self.gen_players.append(best_clone)
             # print stuff was here, removed
             self.best_score = temp_best.score
@@ -1169,10 +1166,10 @@ class Population:
             if not species_found:
                 self.species.append(Species(player))
 
-    def calculate_fitness(self) -> None:
+    def calculate_fitnesses(self) -> None:
         """Calculate the fitness of each player."""
         for player in self.players:
-            player.calculate_fitness()
+            player.fitness = player.calculate_fitness()
 
     def sort_species(self) -> None:
         """Sort the species to be ranked in fitness order, best first."""
@@ -1235,7 +1232,7 @@ class Population:
         # Separate players into species
         self.separate()
         # Calculate the fitness of each player
-        self.calculate_fitness()
+        self.calculate_fitnesses()
         # Sort the species to be ranked in fitness order, best first
         self.sort_species()
         if self.mass_extinction_event:
@@ -1244,7 +1241,7 @@ class Population:
         # Kill off the bottom half of each species
         self.cull_species()
         # Save the best player of this generation
-        self.setbest_player()
+        self.set_best_player()
         # Remove species which haven't improved in 15 generations
         self.kill_stale_species()
         # Kill species which are super bad
@@ -1296,11 +1293,14 @@ class Population:
         for player in list(self.players):
             if self.player_in_batch(player, worlds) and not player.dead:
                 alive += 1
-                player.look()  # Get inputs for brain
-                decision = player.think()  #  outputs from neural network
-                player.update(
-                    decision,
-                )  # Move the player according to the outputs from the neural network
+                # Get inputs for nural network
+                inputs = player.look()
+                # Get nural network's decision (output) from inputs
+                decision = player.think(inputs)
+                # Move the player according to the outputs from the
+                # neural network
+                player.update(decision)
+                # Update max score
                 if player.score > self.global_best_score:
                     self.global_best_score = player.score
 
